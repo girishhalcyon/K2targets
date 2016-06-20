@@ -26,33 +26,104 @@ def get_mast_info(csvname):
     Kmagerrs = mastcsv[:,33]
     kepmags = mastcsv[:,34]
     gids = np.loadtxt(csvname, usecols = [7], skiprows = 3, delimiter = ',', dtype = str)
-    return epics, gids, [Umags, Bmags, Vmags, gmags rmags, imags, zmags, Jmags, Hmags, Kmags],
-        [Umagerrs, Bmagerrs, Vmagerrs, gmagerrs, rmagerrs, imagerrs, zmagerrs, Jmagerrs, Hmagerrs, Kmagerrs],
-        kepmags
+    mags = [Umags, Bmags, Vmags, gmags, rmags, imags, zmags, Jmags, Hmags, Kmags]
+    magerrs = [Umagerrs, Bmagerrs, Vmagerrs, gmagerrs, rmagerrs, imagerrs, zmagerrs, Jmagerrs, Hmagerrs, Kmagerrs]
+    return epics, gids, mags, magerrs, kepmags
 
 def find_props(propname, gids):
     propids = np.loadtxt(propname, dtype=str)
-    propmask = [any([propids[x] == gids[i] for x in range(0,len(propids))]) for i in range(0,len(gids))]
+    propmask = [any([propids[x] in gids[i] for x in range(0,len(propids))]) for i in range(0,len(gids))]
     propmask = np.where(np.asarray(propmask) == True)
     return propmask
 
-def find_intersect(epics, prop1, prop2):
-    if len(prop1) > len(prop2):
-        propa = prop1
-        propb = prop2
-        print '1st array is longer, use it for indexing intersection'
-    else:
-        propa = prop2
-        propb = prop1
-        print '2nd array is longer, use it for indexing intersection'
+def find_intersect(epics, propa, propb):
     epicsa = epics[propa]
     epicsb = epics[propb]
-    intersectids = np.intersect1d(epicsa,epicsb)
-    intersectmask = np.nonzero(np.in1d(epicsa, epicsb))
-    return intersectids, intersectmask
+    intids = np.intersect1d(epicsa,epicsb)
+    intmaskA = np.nonzero(np.in1d(epicsa, epicsb))
+    intmaskB = np.nonzero(np.in1d(epicsb, epicsa))
+    return intids, intmaskA, intmaskB
+
+def ra_convert(ras):
+    newras = np.empty((len(ras)))
+    for i in range(0,len(ras)):
+        ra = ras[i].split()
+        newras[i] = float(ra[0]) + float(ra[1])/60.0 + float(ra[2])/3600.0
+    return newras
+
+def dec_convert(decs):
+    newdecs = np.empty((len(decs)))
+    for i in range(0,len(decs)):
+        dec= decs[i].split()
+        if float(dec[0]) < 0.0:
+            newdecs[i] = float(dec[0]) - float(dec[1])/60.0 - float(dec[2])/3600.0
+        else:
+            newdecs[i] = float(dec[0]) + float(dec[1])/60.0 + float(dec[2])/3600.0
+    return newdecs
+
+def blank_convert(oldarr):
+    newarr = np.empty((len(oldarr)))
+    for i in range(0,len(oldarr)):
+        if oldarr[i] == '':
+            newarr[i] = np.inf
+        elif oldarr[i] == None:
+            newarr[i] = np.inf
+        else:
+            newarr[i] = float(oldarr[i])
+    return newarr
+
+def fill_info(find_epics, epics, ras, decs, pmras, pmdecs, Teffs, metals, Rads, masses, Dists, EBVs):
+    info = np.empty([11,len(find_epics)])
+    for i in range(0,len(find_epics)):
+        find_epic = find_epics[i]
+        compindex = np.where(epics == find_epic)
+        if len(compindex[0]) > 1:
+            compindex = compindex[0][0]
+        info[0,i] = epics[compindex]
+        info[1,i] = ras[compindex]
+        info[2,i] = decs[compindex]
+        info[3,i] = pmras[compindex]
+        info[4,i] = pmdecs[compindex]
+        info[5,i] = Teffs[compindex]
+        info[6,i] = metals[compindex]
+        info[7,i] = Rads[compindex]
+        info[8,i] = masses[compindex]
+        info[9,i] = Dists[compindex]
+        info[10,i] = EBVs[compindex]
+    return info
+
+
 
 if __name__ == '__main__':
-    epics, gids, mags, kepmags = get_mast_info('K2C5mastcsv')
+    epics, gids,mags, magerrs, kepmags = get_mast_info('K2C5mast.csv')
     dwarfprops = find_props('dwarfprops.txt', gids)
     giantprops = find_props('giantprops.txt', gids)
-    dgepics, dgmask = find_intersect(epics, dwarfprops, giantprops)
+    dgepics, dgmask, gdmask = find_intersect(epics, dwarfprops, giantprops)
+
+    allepics = np.asarray(np.load('epics.npy'), dtype = float)
+    allras = np.asarray(np.load('ras.npy'),dtype = str)
+    alldecs = np.asarray(np.load('decs.npy'), dtype = str)
+    allras = ra_convert(allras)
+    alldecs = dec_convert(alldecs)
+    allpmras = np.asarray(np.load('pmras.npy'), dtype = str)
+    allpmras = blank_convert(allpmras)
+    allpmdecs = np.asarray(np.load('pmdecs.npy'), dtype = str)
+    allpmdecs = blank_convert(allpmdecs)
+    allTeffs = blank_convert(np.asarray(np.load('Teffs.npy')))
+    allmetals = blank_convert(np.asarray(np.load('metals.npy')))
+    allRads = blank_convert(np.asarray(np.load('Rads.npy')))
+    allmasses = blank_convert(np.asarray(np.load('masses.npy')))
+    allDists = blank_convert(np.asarray(np.load('Dists.npy')))
+    allEBVs = blank_convert(np.asarray(np.load('EBVs.npy')))
+    dwarfinfo = fill_info(epics[dwarfprops], allepics, allras, alldecs, allpmras, allpmdecs,allTeffs, allmetals, allRads, allmasses, allDists, allEBVs)
+    giantinfo = fill_info(epics[giantprops], allepics, allras, alldecs, allpmras, allpmdecs,allTeffs, allmetals, allRads, allmasses, allDists, allEBVs)
+    dginfo = fill_info(dgepics, allepics, allras, alldecs, allpmras, allpmdecs,allTeffs, allmetals, allRads, allmasses, allDists, allEBVs)
+    plt.subplot(121)
+    plt.plot(dwarfinfo[3,:], dwarfinfo[4,:], '.k', alpha = 0.2)
+    plt.plot(giantinfo[3,:], giantinfo[4,:], '.c', alpha = 0.2)
+    plt.plot(dginfo[3,:], dginfo[4,:], '.r')
+    plt.subplot(122)
+    plt.plot(dwarfinfo[1,:], dwarfinfo[2,:], '.k', alpha = 0.2)
+    plt.plot(giantinfo[1,:], giantinfo[2,:], '.c', alpha = 0.2)
+    plt.plot(dginfo[1,:], dginfo[2,:], '.r')
+    plt.show()
