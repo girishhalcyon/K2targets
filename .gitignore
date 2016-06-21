@@ -45,35 +45,3 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
-epic_npys.tar
-epic_npys.tar.gz
-epics.npy
-ras.npy
-decs.npy
-pmras.npy
-pmdecs.npy
-Teffs.npy
-metals.npy
-Rads.npy
-masses.npy
-Dists.npy
-EBVs.npy
-kepmags.npy
-Bmags.npy
-Vmags.npy
-umags.npy
-gmags.npy
-rmags.npy
-imags.npy
-zmags.npy
-Jmags.npy
-Hmags.npy
-Kmags.npy
-loggs.npy
-Lums.npy
-rhos.npy
-W1mags.npy
-W2mags.npy
-W3mags.npy
-W4mags.npy
-Dists.npy
