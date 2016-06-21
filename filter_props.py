@@ -174,8 +174,12 @@ def make_color_color_plots(infos, infotitles, infocolors, infomarkers, plottitle
             if mode == 'SHOW':
                 plt.show()
             else:
+                if mode == 'PDF':
+                    filesuffix = '.pdf'
+                else:
+                    filesuffix = '.png'
                 savetitle = plottitle2.replace(' ', '_')
-                savein = saveloc + savetitle + '.pdf'
+                savein = saveloc + savetitle + filesuffix
                 plt.savefig(savein)
             plt.close('all')
     print 'Done plotting Color-Color'
@@ -184,13 +188,12 @@ def make_color_color_plots(infos, infotitles, infocolors, infomarkers, plottitle
 
 
 if __name__ == '__main__':
-
-    #L189:225 is to create info npy files and should be commented out if you have already done so#
+    '''
     ##SECTION: Generating new INFO files##
     #epics, gids,kepmags = get_C5mast_info('K2C5mast.csv')
-    epics, gids, kepmags = get_C6mast_info('K2C6mast.csv')
+    #epics, gids, kepmags = get_C6mast_info('K2C6mast.csv')
     #dwarfprops = find_props('C5dwarfprops.txt', gids)
-    giantprops = find_props('C6giantprops.txt', gids)
+    #giantprops = find_props('C6giantprops.txt', gids)
     #dgepics, dgmask, gdmask = find_intersect(epics, dwarfprops, giantprops)
 
     allepics = 'epics.npy'
@@ -223,18 +226,18 @@ if __name__ == '__main__':
     np.save('C6giantinfo', giantinfo)
     #dginfo = fill_info(dgepics, allepics, allras, alldecs, allpmras, allpmdecs,allTeffs, allmetals, allRads, allmasses, allDists, allEBVs, allmags)
     #np.save('C5dginfo', dginfo)
-
+    '''
     ##SECTION: Loading pre-generated INFO files##
-    #dwarfinfo = np.load('C5dwarfinfo.npy')
-    #giantinfo = np.load('C5giantinfo.npy')
-    #dginfo = np.load('C5dginfo.npy')
-    #infos = [giantinfo, dwarfinfo, dginfo]
-    #infotitles = ['Giants', 'Dwarfs', 'Both?']
-    #infocolors = ['r', 'k', 'c']
-    #infomarkers = ['o', 'x', '+']
-    #plottitle = 'Campaign 5'
-    #saveloc = 'C5plots/'
+    dwarfinfo = np.load('C5dwarfinfo.npy')
+    giantinfo = np.load('C5giantinfo.npy')
+    dginfo = np.load('C5dginfo.npy')
+    infos = [giantinfo, dwarfinfo, dginfo]
+    infotitles = ['Giants', 'Dwarfs', 'Both?']
+    infocolors = ['r', 'k', 'c']
+    infomarkers = ['o', 'x', '+']
+    plottitle = 'C05'
+    saveloc = 'C5plots/'
 
-    #make_color_color_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SHOW')
-    #make_color_mag_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SHOW')
-    #make_reduce_propmo_plot(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SHOW')
+    make_color_color_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SHOW')
+    make_color_mag_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SHOW')
+    make_reduce_propmo_plot(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SHOW')
