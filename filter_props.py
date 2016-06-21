@@ -51,43 +51,55 @@ def blank_convert(oldarr):
     newarr = np.empty((len(oldarr)))
     for i in range(0,len(oldarr)):
         if oldarr[i] == '':
-            newarr[i] = np.inf
+            newarr[i] = np.nan
         elif oldarr[i] == None:
             newarr[i] = np.inf
         else:
             newarr[i] = float(oldarr[i])
     return newarr
 
+def read_all(colname, readindex):
+    allcol = np.load(colname)
+    print ('Loaded ' + colname)
+    return allcol[readindex]
+
 def fill_info(find_epics, epics, ras, decs, pmras, pmdecs, Teffs, metals, Rads, masses, Dists, EBVs, allmags):
     kepmags, Bmags, Vmags, umags, gmags, rmags, imags, zmags, Jmags, Hmags, Kmags = allmags
     info = np.empty([22,len(find_epics)])
+    compindex = np.empty((len(find_epics)), dtype = int)
+    epicarray = np.load(epics)
+    print len(find_epics)
     for i in range(0,len(find_epics)):
+        print i+1
         find_epic = find_epics[i]
-        compindex = np.where(epics == find_epic)
-        if len(compindex[0]) > 1:
-            compindex = compindex[0][0]
-        info[0,i] = epics[compindex]
-        info[1,i] = ras[compindex]
-        info[2,i] = decs[compindex]
-        info[3,i] = pmras[compindex]
-        info[4,i] = pmdecs[compindex]
-        info[5,i] = Teffs[compindex]
-        info[6,i] = metals[compindex]
-        info[7,i] = Rads[compindex]
-        info[8,i] = masses[compindex]
-        info[9,i] = Dists[compindex]
-        info[10,i] = EBVs[compindex]
-        info[11, i] = kepmags[compindex]
-        info[12,i] = Bmags[compindex]
-        info[13,i] = Vmags[compindex]
-        info[14,i] = umags[compindex]
-        info[15,i] = gmags[compindex]
-        info[16,i] = rmags[compindex]
-        info[17,i] = imags[compindex]
-        info[18,i] = zmags[compindex]
-        info[19,i] = Jmags[compindex]
-        info[20,i] = Hmags[compindex]
-        info[21,i] = Kmags[compindex]
+        tempindex = np.where(epicarray == find_epic)
+        if len(tempindex[0]) > 1:
+            compindex[i] = int(tempindex[0][0])
+        else:
+            compindex[i] = int(tempindex[0])
+
+    info[0,:] = read_all(epics, compindex)
+    info[1,:] = read_all(ras, compindex)
+    info[2,:] = read_all(decs, compindex)
+    info[3,:] = read_all(pmras, compindex)
+    info[4,:] = read_all(pmdecs, compindex)
+    info[5,:] = read_all(Teffs, compindex)
+    info[6,:] = read_all(metals, compindex)
+    info[7,:] = read_all(Rads, compindex)
+    info[8,:] = read_all(masses, compindex)
+    info[9,:] = read_all(Dists, compindex)
+    info[10,:] = read_all(EBVs, compindex)
+    info[11, :] = read_all(kepmags, compindex)
+    info[12,:] = read_all(Bmags, compindex)
+    info[13,:] = read_all(Vmags, compindex)
+    info[14,:] = read_all(umags, compindex)
+    info[15,:] = read_all(gmags, compindex)
+    info[16,:] = read_all(rmags, compindex)
+    info[17,:] = read_all(imags, compindex)
+    info[18,:] = read_all(zmags, compindex)
+    info[19,:] = read_all(Jmags, compindex)
+    info[20,:] = read_all(Hmags, compindex)
+    info[21,:] = read_all(Kmags, compindex)
     return info
 
 def reduce_propmo_calc(Jmags, rapm, decpm, dec):
@@ -172,50 +184,57 @@ def make_color_color_plots(infos, infotitles, infocolors, infomarkers, plottitle
 
 
 if __name__ == '__main__':
-    epics, gids,kepmags = get_C5mast_info('K2C5mast.csv')
-    #epics, gids, kepmags = get_C6mast_info('K2C6mast.csv')
-    dwarfprops = find_props('C5dwarfprops.txt', gids)
-    giantprops = find_props('C5giantprops.txt', gids)
-    dgepics, dgmask, gdmask = find_intersect(epics, dwarfprops, giantprops)
 
-    allepics = np.asarray(np.load('epics.npy'), dtype = float)
-    allras = np.asarray(np.load('ras.npy'),dtype = str)
-    alldecs = np.asarray(np.load('decs.npy'), dtype = str)
-    allras = ra_convert(allras)
-    alldecs = dec_convert(alldecs)
-    allpmras = np.asarray(np.load('pmras.npy'), dtype = str)
-    allpmras = blank_convert(allpmras)
-    allpmdecs = np.asarray(np.load('pmdecs.npy'), dtype = str)
-    allpmdecs = blank_convert(allpmdecs)
-    allTeffs = blank_convert(np.asarray(np.load('Teffs.npy')))
-    allmetals = blank_convert(np.asarray(np.load('metals.npy')))
-    allRads = blank_convert(np.asarray(np.load('Rads.npy')))
-    allmasses = blank_convert(np.asarray(np.load('masses.npy')))
-    allDists = blank_convert(np.asarray(np.load('Dists.npy')))
-    allEBVs = blank_convert(np.asarray(np.load('EBVs.npy')))
-    allkepmags = blank_convert(np.asarray(np.load('kepmags.npy')))
-    allBmags = blank_convert(np.asarray(np.load('Bmags.npy')))
-    allVmags = blank_convert(np.asarray(np.load('Vmags.npy')))
-    allumags = blank_convert(np.asarray(np.load('umags.npy')))
-    allgmags = blank_convert(np.asarray(np.load('gmags.npy')))
-    allrmags = blank_convert(np.asarray(np.load('rmags.npy')))
-    allimags = blank_convert(np.asarray(np.load('imags.npy')))
-    allzmags = blank_convert(np.asarray(np.load('zmags.npy')))
-    allJmags = blank_convert(np.asarray(np.load('Jmags.npy')))
-    allHmags = blank_convert(np.asarray(np.load('Hmags.npy')))
-    allKmags = blank_convert(np.asarray(np.load('Kmags.npy')))
+    #L189:225 is to create info npy files and should be commented out if you have already done so#
+    ##SECTION: Generating new INFO files##
+    #epics, gids,kepmags = get_C5mast_info('K2C5mast.csv')
+    epics, gids, kepmags = get_C6mast_info('K2C6mast.csv')
+    #dwarfprops = find_props('C5dwarfprops.txt', gids)
+    giantprops = find_props('C6giantprops.txt', gids)
+    #dgepics, dgmask, gdmask = find_intersect(epics, dwarfprops, giantprops)
+
+    allepics = 'epics.npy'
+    allras = 'ras.npy'
+    alldecs = 'decs.npy'
+    allpmras = 'pmras.npy'
+    allpmdecs ='pmdecs.npy'
+    allTeffs = 'Teffs.npy'
+    allmetals = 'metals.npy'
+    allRads ='Rads.npy'
+    allmasses = 'masses.npy'
+    allDists = 'Dists.npy'
+    allEBVs = 'EBVs.npy'
+    allkepmags = 'kepmags.npy'
+    allBmags = 'Bmags.npy'
+    allVmags = 'Vmags.npy'
+    allumags = 'umags.npy'
+    allgmags = 'gmags.npy'
+    allrmags = 'rmags.npy'
+    allimags = 'imags.npy'
+    allzmags = 'zmags.npy'
+    allJmags = 'Jmags.npy'
+    allHmags = 'Hmags.npy'
+    allKmags = 'Kmags.npy'
     allmags = [allkepmags, allBmags, allVmags, allumags, allgmags, allrmags, allimags, allzmags, allJmags, allHmags, allKmags]
 
-    dwarfinfo = fill_info(epics[dwarfprops], allepics, allras, alldecs, allpmras, allpmdecs,allTeffs, allmetals, allRads, allmasses, allDists, allEBVs, allmags)
+    #dwarfinfo = fill_info(epics[dwarfprops], allepics, allras, alldecs, allpmras, allpmdecs,allTeffs, allmetals, allRads, allmasses, allDists, allEBVs, allmags)
+    #np.save('C5dwarfinfo', dwarfinfo)
     giantinfo = fill_info(epics[giantprops], allepics, allras, alldecs, allpmras, allpmdecs,allTeffs, allmetals, allRads, allmasses, allDists, allEBVs, allmags)
-    dginfo = fill_info(dgepics, allepics, allras, alldecs, allpmras, allpmdecs,allTeffs, allmetals, allRads, allmasses, allDists, allEBVs, allmags)
+    np.save('C6giantinfo', giantinfo)
+    #dginfo = fill_info(dgepics, allepics, allras, alldecs, allpmras, allpmdecs,allTeffs, allmetals, allRads, allmasses, allDists, allEBVs, allmags)
+    #np.save('C5dginfo', dginfo)
 
-    infos = [giantinfo, dwarfinfo, dginfo]
-    infotitles = ['Giants', 'Dwarfs', 'Both?']
-    infocolors = ['r', 'k', 'c']
-    infomarkers = ['o', 'x', '+']
-    plottitle = 'Campaign 5'
-    saveloc = 'C5plots/'
-    make_color_color_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SAVE')
-    make_color_mag_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SAVE')
-    make_reduce_propmo_plot(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SAVE')
+    ##SECTION: Loading pre-generated INFO files##
+    #dwarfinfo = np.load('C5dwarfinfo.npy')
+    #giantinfo = np.load('C5giantinfo.npy')
+    #dginfo = np.load('C5dginfo.npy')
+    #infos = [giantinfo, dwarfinfo, dginfo]
+    #infotitles = ['Giants', 'Dwarfs', 'Both?']
+    #infocolors = ['r', 'k', 'c']
+    #infomarkers = ['o', 'x', '+']
+    #plottitle = 'Campaign 5'
+    #saveloc = 'C5plots/'
+
+    #make_color_color_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SHOW')
+    #make_color_mag_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SHOW')
+    #make_reduce_propmo_plot(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SHOW')
