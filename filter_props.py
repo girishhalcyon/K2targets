@@ -246,9 +246,16 @@ if __name__ == '__main__':
     plottitle = 'C05'
     saveloc = 'C5plots/'
 
-    make_color_color_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
-    make_color_mag_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
-    make_reduce_propmo_plot(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
+    #make_color_color_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
+    #make_color_mag_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
+    #make_reduce_propmo_plot(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
+    plt.subplot(121)
+    #plt.scatter(giantinfo[11], giantinfo[7], marker = 'o', c= 'r')
+    #plt.scatter(dwarfinfo[11], dwarfinfo[7], marker = 'x', c = 'k')
+    #plt.scatter(dginfo[11], dginfo[7], marker = '+', c= 'c')
+    plt.subplot(122)
+    
+    #plt.show()
 
     dwarfinfo = np.load('C6dwarfinfo.npy')
     giantinfo = np.load('C6giantinfo.npy')
@@ -260,6 +267,10 @@ if __name__ == '__main__':
     plottitle = 'C06'
     saveloc = 'C6plots/'
 
-    make_color_color_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
-    make_color_mag_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
-    make_reduce_propmo_plot(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
+    #plt.scatter(giantinfo[11], giantinfo[7], marker = 'o', c= 'r')
+    #plt.scatter(dwarfinfo[11], dwarfinfo[7], marker = 'x', c = 'k')
+    #plt.scatter(dginfo[11], dginfo[7], marker = '+', c= 'c')
+    #plt.show()
+    #make_color_color_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
+    #make_color_mag_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
+    #make_reduce_propmo_plot(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
