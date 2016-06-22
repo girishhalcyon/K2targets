@@ -185,12 +185,15 @@ def plot_epic_derive(infos, infotitles, infocolors, infomarkers, plottitle,
             filesuffix = '.pdf'
         else:
             filesuffix = '.png'
+        plottitle2 = plottitle2.replace('$_{\star}$', 'star')
+        plottitle2 = plottitle2.replace('$_{eff}$', 'eff')
         savetitle = plottitle2.replace(' ', '_')
         savein = saveloc + savetitle + filesuffix
         plt.savefig(savein)
     plt.close('all')
 
 if __name__ == '__main__':
+
     dwarfinfo = np.load('C5dwarfinfo.npy')
     giantinfo = np.load('C5giantinfo.npy')
     dginfo = np.load('C5dginfo.npy')
@@ -201,10 +204,10 @@ if __name__ == '__main__':
     plottitle = 'C05'
     saveloc = 'C5plots/'
 
-    #plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 5, ylabel = r'T$_{eff}$')
-    #plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 7, ylabel = r'R$_{\star}$')
-    plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 8, ylabel = r'M$_{\star}$')
-    '''
+    plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 5, ylabel = r'T$_{eff}$', mode = 'PNG')
+    plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 7, ylabel = r'R$_{\star}$', mode = 'PNG')
+    plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 8, ylabel = r'M$_{\star}$', mode = 'PNG')
+
     dwarfinfo = np.load('C6dwarfinfo.npy')
     giantinfo = np.load('C6giantinfo.npy')
     dginfo = np.load('C6dginfo.npy')
@@ -214,5 +217,6 @@ if __name__ == '__main__':
     infomarkers = ['o', 'x', '+']
     plottitle = 'C06'
     saveloc = 'C6plots/'
-    plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 8, ylabel = 'Mass')
-    '''
+    plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 5, ylabel = r'T$_{eff}$', mode = 'PNG')
+    plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 7, ylabel = r'R$_{\star}$', mode = 'PNG')
+    plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 8, ylabel = r'M$_{\star}$', mode = 'PNG')
