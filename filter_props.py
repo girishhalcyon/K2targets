@@ -125,8 +125,12 @@ def make_reduce_propmo_plot(infos, infotitles, infocolors, infomarkers, plottitl
     if mode =='SHOW':
         plt.show()
     else:
+        if mode == 'PDF':
+            filesuffix = '.pdf'
+        else:
+            filesuffix = '.png'
         savetitle = plottitle2.replace(' ', '_')
-        savein = saveloc + savetitle + '.pdf'
+        savein = saveloc + savetitle + filesuffix
         plt.savefig(savein)
     plt.close('all')
     print 'Done plotting Reduced Proper Motion'
@@ -148,8 +152,12 @@ def make_color_mag_plots(infos, infotitles, infocolors, infomarkers, plottitle, 
         if mode == 'SHOW':
             plt.show()
         else:
+            if mode == 'PDF':
+                filesuffix = '.pdf'
+            else:
+                filesuffix = '.png'
             savetitle = plottitle2.replace(' ', '_')
-            savein = saveloc + savetitle + '.pdf'
+            savein = saveloc + savetitle + filesuffix
             plt.savefig(savein)
         plt.close('all')
     print 'Done plotting Color-Magnitude'
@@ -238,6 +246,31 @@ if __name__ == '__main__':
     plottitle = 'C05'
     saveloc = 'C5plots/'
 
-    make_color_color_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SHOW')
-    make_color_mag_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SHOW')
-    make_reduce_propmo_plot(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'SHOW')
+    #make_color_color_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
+    #make_color_mag_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
+    #make_reduce_propmo_plot(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
+    plt.subplot(121)
+    #plt.scatter(giantinfo[11], giantinfo[7], marker = 'o', c= 'r')
+    #plt.scatter(dwarfinfo[11], dwarfinfo[7], marker = 'x', c = 'k')
+    #plt.scatter(dginfo[11], dginfo[7], marker = '+', c= 'c')
+    plt.subplot(122)
+    
+    #plt.show()
+
+    dwarfinfo = np.load('C6dwarfinfo.npy')
+    giantinfo = np.load('C6giantinfo.npy')
+    dginfo = np.load('C6dginfo.npy')
+    infos = [giantinfo, dwarfinfo, dginfo]
+    infotitles = ['Giants', 'Dwarfs', 'Both?']
+    infocolors = ['r', 'k', 'c']
+    infomarkers = ['o', 'x', '+']
+    plottitle = 'C06'
+    saveloc = 'C6plots/'
+
+    #plt.scatter(giantinfo[11], giantinfo[7], marker = 'o', c= 'r')
+    #plt.scatter(dwarfinfo[11], dwarfinfo[7], marker = 'x', c = 'k')
+    #plt.scatter(dginfo[11], dginfo[7], marker = '+', c= 'c')
+    #plt.show()
+    #make_color_color_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
+    #make_color_mag_plots(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
+    #make_reduce_propmo_plot(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, mode = 'PNG')
