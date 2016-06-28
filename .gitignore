@@ -82,3 +82,5 @@ pm_all.npy
 cdpp_all.npy
 CDPPcluster.npy
 cdpp_limit.npy
+LoggJHcluster.npy
+TempCluster.npy
