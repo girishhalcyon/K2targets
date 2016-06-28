@@ -401,6 +401,6 @@ if __name__ == '__main__':
     teffname = 'TempCluster.npy'
     cdppname = 'CDPPcluster.npy'
     loggjhname = 'LoggJHcluster.npy'
-    all_cluster_look(teffname, 'Temperature 3 Clusters')
-    all_cluster_look(cdppname, 'CDPP 5 Clusters')
-    all_cluster_look(loggjhname, 'Log_g J - H 2 Clusters')
+    all_cluster_look(teffname, 'Temperature 3 Clusters', mode = 'PNG')
+    all_cluster_look(cdppname, 'CDPP 5 Clusters', mode = 'PNG')
+    all_cluster_look(loggjhname, 'Log_g J - H 2 Clusters', mode = 'PNG')
