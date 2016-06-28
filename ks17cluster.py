@@ -24,9 +24,16 @@ def get_pm_tot(kepids, pmfile = 'pm_all.npy'):
     all_ids = pm_all[0]
     all_pm = pm_all[1]
     pm_tot = np.empty((len(kepids)), dtype = float)
+    count = 1
     for i in range(0,len(kepids)):
         findid = np.where(all_ids == kepids[i])
-        pm_tot[i] = float(all_pm[findid])
+        if len(findid[0]) > 1:
+            findid = findid[0][0]
+            pm_tot[i] = float(all_pm[findid])
+        elif len(findid[0]) == 0:
+            pm_tot[i] = np.nan
+        else:
+            pm_tot[i] = float(all_pm[findid])
     return pm_tot
 def make_color_mag_plots(infos, infotitles, plottitle, saveloc = '',kepmags = 1, Jmags = 8, Hmags = 9, Kmags = 10, mode = 'SHOW'):
     mags = [kepmags, Jmags, Hmags, Kmags]
@@ -113,7 +120,26 @@ def make_color_color_plots(infos, infotitles, plottitle, saveloc = '',kepmags = 
             plt.close('all')
     print 'Done plotting Color-Color'
 
+def all_cluster_look(clustername, plottitle, saveloc = 'ks17plots/', mode = 'SHOW', clustertitles = []):
+    infos = np.load(clustername)
+    colnames = ['KepID', 'KepMag', 'Teff', 'log g', 'Metallicity',
+        'Mass', 'Radius', 'Distance', 'Jmag', 'Hmag', 'Kmag', 'Proper Motion',
+        'CDPP', 'Poly CDPP']
+    nclusters = np.shape(infos)[0]
+    approxcentroids = [[np.mean(infos[i,j]) for j in range(0,14)] for i in range(0,nclusters)]
+    approxsigma = [[np.std(infos[i,j]) for j in range(0,14)] for i in range(0,nclusters)]
+    for i in range(0,nclusters):
+        print ('Cluster'+ str(i))
+        for j in range(0,len(colnames)):
+            print colnames[j], approxcentroids[i][j], approxsigma[i][j]
+        print ('N = ' + str(len(infos[i][0])))
+    if len(clustertitles) == 0:
+        clustertitles = [str(i) for i in range(0,nclusters)]
+    make_color_color_plots(infos, clustertitles, plottitle, saveloc=saveloc, mode= mode)
+    make_single_col_plots(infos, clustertitles, plottitle, colnames, saveloc=saveloc, mode=mode)
+
 if __name__ == '__main__':
+    '''
     fname = 'ks17.csv'
     ks17 = pd.read_csv(fname, delimiter = '|')
     kepid = np.asarray(ks17.kepid)
@@ -200,12 +226,15 @@ if __name__ == '__main__':
     hmag_err = hmag_err[errfinitemask]
     kmag = kmag[errfinitemask]
     kmag_err = kmag_err[errfinitemask]
-    #print 'Getting Proper Motion'
-    #pm_tot = get_pm_tot(kepid)
-    #np.save('pm_limit', pm_tot)
+    #print 'Getting CDPP'
+    #cdpp_tot = get_pm_tot(kepid, pmfile = 'cdpp_all.npy')
+    #np.save('cdpp_limit', cdpp_tot)
+    cdpp_tot = np.load('cdpp_limit.npy')
     pm_tot = np.load('pm_limit.npy')
+    temppoly = [kepmag, kepid, jmag_err, hmag_err, kmag_err, pm_tot, cdpp_tot]
 
-    errlimitmask = np.where((jmag_err < 8.0) & (hmag_err < 8.0) & (kmag_err < 8.0) & (np.isfinite(pm_tot)))
+    errlimitmask = np.where((jmag_err < 8.0) & (hmag_err < 8.0)
+        & (kmag_err < 8.0) & (np.isfinite(pm_tot)) & (np.isfinite(cdpp_tot)))
     kepid = kepid[errlimitmask]
     teff = teff[errlimitmask]
     teff_err = teff_err[errlimitmask]
@@ -223,6 +252,10 @@ if __name__ == '__main__':
     kmag = kmag[errlimitmask]
     kmag_err = kmag_err[errlimitmask]
     pm_tot = pm_tot[errlimitmask]
+    cdpp_tot = cdpp_tot[errlimitmask]
+    magcdppfit = np.polyfit(kepmag, cdpp_tot, 5)
+    poly_cdpp = cdpp_tot/np.polyval(magcdppfit, kepmag)
+
 
     jhcolor = jmag - hmag
     jhcolor_err = np.sqrt((jmag_err**2.0) + (hmag_err**2.0))
@@ -251,6 +284,8 @@ if __name__ == '__main__':
     fuzz_hmag_err = make_fuzzy_column(hmag_err)
     fuzz_kmag_err = make_fuzzy_column(kmag_err)
     fuzz_pm_tot = make_fuzzy_column(pm_tot)
+    fuzz_cdpp_tot = make_fuzzy_column(cdpp_tot)
+    fuzz_poly_cdpp = make_fuzzy_column(poly_cdpp)
 
     colorgroup = np.asarray([fuzz_teff])
     trancolor = colorgroup.T
@@ -260,10 +295,9 @@ if __name__ == '__main__':
     centroids, indices = kmeans2(cleangroup, nclusters, iter = 500)
 
     colnames = ['KepID', 'KepMag', 'Teff', 'log g', 'Metallicity',
-        'Mass', 'Radius', 'Distance', 'Jmag', 'Hmag', 'Kmag', 'Proper Motion']
-    allinfo = np.asarray([kepid, kepmag, teff, logg,feh, mass, radius,
-        dist, jmag, hmag, kmag, pm_tot, teff_err, logg_err, jmag_err, hmag_err,
-        kmag_err])
+        'Mass', 'Radius', 'Distance', 'Jmag', 'Hmag', 'Kmag', 'Proper Motion',
+        'CDPP', 'Poly CDPP']
+
 
     infos = [[fuzz_kepid[np.where(indices == i)],
         fuzz_kepmag[np.where(indices==i)], fuzz_teff[np.where(indices==i)],
@@ -271,13 +305,16 @@ if __name__ == '__main__':
         fuzz_mass[np.where(indices==i)], fuzz_radius[np.where(indices==i)],
         fuzz_dist[np.where(indices==i)], fuzz_jmag[np.where(indices==i)],
         fuzz_hmag[np.where(indices==i)], fuzz_kmag[np.where(indices==i)],
-        fuzz_pm_tot[np.where(indices==i)]] for i in range(0,nclusters)]
+        fuzz_pm_tot[np.where(indices==i)],
+        fuzz_cdpp_tot[np.where(indices==i)],
+        fuzz_poly_cdpp[np.where(indices==i)]] for i in range(0,nclusters)]
 
+    np.save('TempCluster', infos)
     approxcentroids = [np.mean(infos[i], axis =1) for i in range(0,nclusters)]
     approxsigma = [np.std(infos[i], axis =1) for i in range(0,nclusters)]
     teffmin = 20000.0
     for i in range(0,nclusters):
-        #print ('Cluster'+ str(i))
+        print ('Cluster'+ str(i))
         if approxcentroids[i][2] < teffmin:
             teffmin = approxcentroids[i][2]
             teffindex = i
@@ -288,15 +325,14 @@ if __name__ == '__main__':
 
     teffmask = np.where(indices == teffindex)
 
-    colorgroup = np.asarray([fuzz_logg[teffmask], fuzz_pm_tot[teffmask],
-    fuzz_jhcolor[teffmask]])
+    colorgroup = np.asarray([fuzz_logg[teffmask],
+        fuzz_poly_cdpp[teffmask]])
     trancolor = colorgroup.T
     cleangroup = whiten(trancolor)
     #cleangroup = trancolor
     nclusters = 5
-    centroids, indices = kmeans2(cleangroup, nclusters, iter = 500)
-    colnames = ['KepID', 'KepMag', 'Teff', 'log g', 'Metallicity',
-        'Mass', 'Radius', 'Distance', 'Jmag', 'Hmag', 'Kmag', 'Proper Motion']
+    centroids, indices = kmeans2(cleangroup, nclusters, iter = 2500)
+
     infos = [[fuzz_kepid[teffmask][np.where(indices == i)],
         fuzz_kepmag[teffmask][np.where(indices==i)],
         fuzz_teff[teffmask][np.where(indices==i)],
@@ -308,11 +344,52 @@ if __name__ == '__main__':
         fuzz_jmag[teffmask][np.where(indices==i)],
         fuzz_hmag[teffmask][np.where(indices==i)],
         fuzz_kmag[teffmask][np.where(indices==i)],
-        fuzz_pm_tot[teffmask][np.where(indices==i)]]
+        fuzz_pm_tot[teffmask][np.where(indices==i)],
+        fuzz_cdpp_tot[teffmask][np.where(indices==i)],
+        fuzz_poly_cdpp[teffmask][np.where(indices==i)]]
         for i in range(0,nclusters)]
 
-    np.save('2runcluster_2', infos)
-    print centroids
+    np.save('CDPPcluster', infos)
+    approxcentroids = [np.mean(infos[i], axis =1) for i in range(0,nclusters)]
+    approxsigma = [np.std(infos[i], axis =1) for i in range(0,nclusters)]
+    loggmax = 2.0
+    for i in range(0,nclusters):
+        print ('Cluster'+ str(i))
+        if approxcentroids[i][3] > loggmax:
+            loggmax = approxcentroids[i][3]
+            loggindex = i
+        for j in range(0,len(colnames)):
+            print colnames[j], approxcentroids[i][j], approxsigma[i][j]
+        print ('N = ' + str(len(infos[i][0])))
+    print loggindex
+    loggmask = np.where(indices == loggindex)
+
+    colorgroup = np.asarray([fuzz_logg[teffmask][loggmask],
+        fuzz_jhcolor[teffmask][loggmask]])
+    trancolor = colorgroup.T
+    cleangroup = whiten(trancolor)
+    #cleangroup = trancolor
+    nclusters = 2
+    centroids, indices = kmeans2(cleangroup, nclusters, iter = 2500)
+
+    infos = [[fuzz_kepid[teffmask][loggmask][np.where(indices == i)],
+        fuzz_kepmag[teffmask][loggmask][np.where(indices==i)],
+        fuzz_teff[teffmask][loggmask][np.where(indices==i)],
+        fuzz_logg[teffmask][loggmask][np.where(indices==i)],
+        fuzz_feh[teffmask][loggmask][np.where(indices==i)],
+        fuzz_mass[teffmask][loggmask][np.where(indices==i)],
+        fuzz_radius[teffmask][loggmask][np.where(indices==i)],
+        fuzz_dist[teffmask][loggmask][np.where(indices==i)],
+        fuzz_jmag[teffmask][loggmask][np.where(indices==i)],
+        fuzz_hmag[teffmask][loggmask][np.where(indices==i)],
+        fuzz_kmag[teffmask][loggmask][np.where(indices==i)],
+        fuzz_pm_tot[teffmask][loggmask][np.where(indices==i)],
+        fuzz_cdpp_tot[teffmask][loggmask][np.where(indices==i)],
+        fuzz_poly_cdpp[teffmask][loggmask][np.where(indices==i)]]
+        for i in range(0,nclusters)]
+
+
+    np.save('LoggJHcluster', infos)
     approxcentroids = [np.mean(infos[i], axis =1) for i in range(0,nclusters)]
     approxsigma = [np.std(infos[i], axis =1) for i in range(0,nclusters)]
     for i in range(0,nclusters):
@@ -320,11 +397,10 @@ if __name__ == '__main__':
         for j in range(0,len(colnames)):
             print colnames[j], approxcentroids[i][j], approxsigma[i][j]
         print ('N = ' + str(len(infos[i][0])))
-
-    infotitles = [str(i) for i in range(0,nclusters)]
-    plottitle = 'Kepler Clusters' + str(nclusters)
-    saveloc = 'ks17plots/'
-
-
-    make_color_color_plots(infos, infotitles, plottitle, saveloc, mode= 'SHOW')
-    make_single_col_plots(infos, infotitles, plottitle, colnames, saveloc, mode='SHOW')
+    '''
+    teffname = 'TempCluster.npy'
+    cdppname = 'CDPPcluster.npy'
+    loggjhname = 'LoggJHcluster.npy'
+    all_cluster_look(teffname, 'Temperature 3 Clusters')
+    all_cluster_look(cdppname, 'CDPP 5 Clusters')
+    all_cluster_look(loggjhname, 'Log_g J - H 2 Clusters')
