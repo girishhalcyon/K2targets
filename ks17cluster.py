@@ -231,7 +231,6 @@ if __name__ == '__main__':
     #np.save('cdpp_limit', cdpp_tot)
     cdpp_tot = np.load('cdpp_limit.npy')
     pm_tot = np.load('pm_limit.npy')
-    temppoly = [kepmag, kepid, jmag_err, hmag_err, kmag_err, pm_tot, cdpp_tot]
 
     errlimitmask = np.where((jmag_err < 8.0) & (hmag_err < 8.0)
         & (kmag_err < 8.0) & (np.isfinite(pm_tot)) & (np.isfinite(cdpp_tot)))
@@ -369,7 +368,7 @@ if __name__ == '__main__':
     trancolor = colorgroup.T
     cleangroup = whiten(trancolor)
     #cleangroup = trancolor
-    nclusters = 2
+    nclusters = 3
     centroids, indices = kmeans2(cleangroup, nclusters, iter = 2500)
 
     infos = [[fuzz_kepid[teffmask][loggmask][np.where(indices == i)],
@@ -389,7 +388,7 @@ if __name__ == '__main__':
         for i in range(0,nclusters)]
 
 
-    np.save('LoggJHcluster', infos)
+    np.save('LoggJKcluster', infos)
     approxcentroids = [np.mean(infos[i], axis =1) for i in range(0,nclusters)]
     approxsigma = [np.std(infos[i], axis =1) for i in range(0,nclusters)]
     for i in range(0,nclusters):
@@ -397,10 +396,21 @@ if __name__ == '__main__':
         for j in range(0,len(colnames)):
             print colnames[j], approxcentroids[i][j], approxsigma[i][j]
         print ('N = ' + str(len(infos[i][0])))
+
+    clustertitles = [str(i) for i in range(0,nclusters)]
+    plottitle = 'Log_g J - K'
+    saveloc = 'ks17plots/'
+    make_color_color_plots(infos, clustertitles, plottitle, saveloc=saveloc, mode= 'SHOW')
+    make_single_col_plots(infos, clustertitles, plottitle, colnames, saveloc=saveloc, mode='SHOW')
+
     '''
     teffname = 'TempCluster.npy'
     cdppname = 'CDPPcluster.npy'
-    loggjhname = 'LoggJHcluster.npy'
-    all_cluster_look(teffname, 'Temperature 3 Clusters', mode = 'PNG')
-    all_cluster_look(cdppname, 'CDPP 5 Clusters', mode = 'PNG')
-    all_cluster_look(loggjhname, 'Log_g J - H 2 Clusters', mode = 'PNG')
+    loggjkname = 'LoggJKcluster.npy'
+    infos = np.load(loggjkname)
+    print 'Number of unique KepIDs in both:', len((np.intersect1d(np.unique(infos[1][0]), np.unique(infos[2][0]))))
+    print 'Number of unique, total samples in M Dwarf Cluster:', len(np.unique(infos[1][0])), len(infos[1][0])
+    print 'Number of unique, total samples in K Dwarf? Cluster', len(np.unique(infos[2][0])), len(infos[2][0])
+    #all_cluster_look(teffname, 'Temperature 3 Clusters', mode = 'SHOW')
+    #all_cluster_look(cdppname, 'CDPP 5 Clusters', mode = 'SHOW')
+    all_cluster_look(loggjkname, 'Log_g J - K 3 Clusters', mode = 'SHOW')
