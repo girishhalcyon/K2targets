@@ -5,14 +5,14 @@ from scipy.cluster.vq import whiten, kmeans2
 from sklearn.cluster import MeanShift, estimate_bandwidth
 from sklearn.cluster import DBSCAN as dbs
 from sklearn.preprocessing import StandardScaler
-
+from filter_props import read_all
 
 def make_fuzzy_column(col, colerr = [np.nan]):
     samples = len(col)
     newcol = np.empty((samples*100))
     for i in range(0,len(col)):
         sample_mean = col[i]
-        if np.isfinite(colerr[0]):
+        if ((np.isfinite(colerr[0])) & (np.isfinite(col[0]))):
             sample_err= colerr[i]
             newcol[100*i:100*i+100] = np.random.normal(sample_mean, sample_err, 100)
         else:
@@ -124,10 +124,10 @@ def all_cluster_look(clustername, plottitle, saveloc = 'ks17plots/', mode = 'SHO
     infos = np.load(clustername)
     colnames = ['KepID', 'KepMag', 'Teff', 'log g', 'Metallicity',
         'Mass', 'Radius', 'Distance', 'Jmag', 'Hmag', 'Kmag', 'Proper Motion',
-        'CDPP', 'Poly CDPP']
+        'CDPP', 'Poly CDPP', 'Galactic Latitude','umag', 'gmag', 'rmag', 'imag', 'zmag']
     nclusters = np.shape(infos)[0]
-    approxcentroids = [[np.mean(infos[i,j]) for j in range(0,14)] for i in range(0,nclusters)]
-    approxsigma = [[np.std(infos[i,j]) for j in range(0,14)] for i in range(0,nclusters)]
+    approxcentroids = [[np.mean(infos[i,j]) for j in range(0,20)] for i in range(0,nclusters)]
+    approxsigma = [[np.std(infos[i,j]) for j in range(0,20)] for i in range(0,nclusters)]
     for i in range(0,nclusters):
         print ('Cluster'+ str(i))
         for j in range(0,len(colnames)):
@@ -138,8 +138,83 @@ def all_cluster_look(clustername, plottitle, saveloc = 'ks17plots/', mode = 'SHO
     make_color_color_plots(infos, clustertitles, plottitle, saveloc=saveloc, mode= mode)
     make_single_col_plots(infos, clustertitles, plottitle, colnames, saveloc=saveloc, mode=mode)
 
+
+def neighbor_impute(old_kep, old_j, old_j_err, old_h, old_h_err, old_k, old_km_err,
+    old_pm, old_g, old_r, old_i, old_z, knn = 50):
+
+    #Replace proper motion values of 0.0 with NaNs to mark them as unknown
+    replace_pm = np.where(old_pm == 0.0)
+    old_pm[replace_pm] = np.nan
+
+    #Assign default errors to each parameter
+    new_pm_err = 0.003* np.ones_like(old_pm)
+    new_g_err = 0.04* np.ones_like(old_g)
+    new_r_err = 0.04* np.ones_like(old_r)
+    new_i_err = 0.04* np.ones_like(old_i)
+    new_z_err = 0.04* np.ones_like(old_z)
+
+    #Save variances of good parameters to constants
+    kep_var = np.nanvar(old_kep)
+    j_var = np.nanvar(old_j)
+    h_var = np.nanvar(old_h)
+    k_var = np.nanvar(old_k)
+
+    #Create array to keep track of what parameters have been imputed
+    impute_flags = np.asarray(['0']*len(old_kep))
+
+
+    good_params = [old_kep, old_j, old_h, old_k]
+    good_vars = [kep_var, j_var, h_var, k_var]
+    all_old= [old_pm, old_g, old_r, old_i, old_z]
+    all_new =[old_pm, old_g, old_r, old_i, old_z]
+    all_err = [new_pm_err, new_g_err, new_r_err, new_i_err, new_z_err]
+    flags = ['p', 'g', 'r', 'i', 'z']
+
+
+    for i in range(0,len(all_old)):
+        old_param = all_old[i]
+        impute_mask = np.where((np.isfinite(old_param) == False))
+        good_mask = np.where(np.isfinite(old_param))
+        print len(impute_mask[0]), len(good_mask[0])
+
+        for j in range(0,len(impute_mask[0])):
+            impute_flags[impute_mask][j] += flags[i] #Update imputation flag
+            sqdist = np.zeros((len(good_mask[0]))) #Empty array to store distances from current unknown datapoint to known datapoints
+            goodcounts = np.zeros_like(sqdist) #Keeps track of how many parameters have been used to calculate distance
+            for k in range(0,len(good_mask[0])):
+                for h in range(0,len(good_params)):
+                    temp_sqdist = ((good_params[h][impute_mask][j] -
+                        good_params[h][good_mask][k])**2.0)/good_vars[h] #Variance normalized distance
+                    if np.isfinite(temp_sqdist):
+                        sqdist[k] += temp_sqdist
+                        goodcounts[k] += 1
+            sqdist = sqdist/goodcounts #Divide by total number of parameters used in distance
+            sort_mask = np.argsort(sqdist)
+            sort_var = old_param[good_mask][sort_mask] #Sort desired parameter values acccording to distances
+            sort_var = sort_var[:knn]  #Accept only up to knn for imputation
+            median_dist = np.median(sort_var)
+            dist_sigma = abs(sort_var - median_dist)/np.std(sort_var) #Remove 3-sigma outliers
+            while len(np.where(dist_sigma > 3.0)[0]) > 0:
+                sort_var = sort_var[np.where(dist_sigma <= 3.0)]
+                median_dist = np.median(sort_var)
+                dist_sigma = abs(sort_var - median_dist)/np.std(sort_var)
+            all_new[i][impute_mask][j] = np.mean(sort_var) #Assign mean of closest datapoints as imputed value
+            all_err[i][impute_mask][j] = np.std(sort_var) #Assign standard deviation as error
+
+    new_pm = all_new[0]
+    new_pm_err = all_err[0]
+    new_g = all_new[1]
+    new_g_err = all_err[1]
+    new_r = all_new[2]
+    new_r_err = all_err[2]
+    new_i = all_new[3]
+    new_i_err = all_err[3]
+    new_z = all_new[4]
+    new_z_err = all_err[4]
+
+    return new_pm, new_pm_err, new_g, new_g_err, new_r, new_r_err, new_i, new_i_err, new_z, new_z_err, impute_flags
 if __name__ == '__main__':
-    '''
+
     fname = 'ks17.csv'
     ks17 = pd.read_csv(fname, delimiter = '|')
     kepid = np.asarray(ks17.kepid)
@@ -166,6 +241,9 @@ if __name__ == '__main__':
     logg_prov = np.asarray(ks17.logg_prov)
     feh_prov = np.asarray(ks17.feh_prov)
 
+
+
+
     logg_prov_AST = np.asarray(['AST' in logg_prov[i] for i in range(0,len(logg_prov))])
     logg_prov_SPE = np.asarray(['SPE' in logg_prov[i] for i in range(0,len(logg_prov))])
     teff_prov_SPE = np.asarray(['SPE' in teff_prov[i] for i in range(0,len(logg_prov))])
@@ -188,6 +266,7 @@ if __name__ == '__main__':
     hmag_err = hmag_err[maskprovs]
     kmag = kmag[maskprovs]
     kmag_err = kmag_err[maskprovs]
+
 
 
     maskfinite = np.where((np.isfinite(kepmag)) & (np.isfinite(jmag))
@@ -226,11 +305,18 @@ if __name__ == '__main__':
     hmag_err = hmag_err[errfinitemask]
     kmag = kmag[errfinitemask]
     kmag_err = kmag_err[errfinitemask]
-    #print 'Getting CDPP'
-    #cdpp_tot = get_pm_tot(kepid, pmfile = 'cdpp_all.npy')
-    #np.save('cdpp_limit', cdpp_tot)
+
+    #print 'Getting umag'
+    #umag = get_pm_tot(kepid, pmfile = 'umag_all.npy')
+    #np.save('umag_limit', umag)
     cdpp_tot = np.load('cdpp_limit.npy')
     pm_tot = np.load('pm_limit.npy')
+    glat_tot = np.load('glat_limit.npy')
+    umag = np.load('umag_limit.npy')
+    gmag = np.load('gmag_limit.npy')
+    rmag = np.load('rmag_limit.npy')
+    imag = np.load('imag_limit.npy')
+    zmag = np.load('zmag_limit.npy')
 
     errlimitmask = np.where((jmag_err < 8.0) & (hmag_err < 8.0)
         & (kmag_err < 8.0) & (np.isfinite(pm_tot)) & (np.isfinite(cdpp_tot)))
@@ -254,6 +340,44 @@ if __name__ == '__main__':
     cdpp_tot = cdpp_tot[errlimitmask]
     magcdppfit = np.polyfit(kepmag, cdpp_tot, 5)
     poly_cdpp = cdpp_tot/np.polyval(magcdppfit, kepmag)
+    umag = umag[errlimitmask]
+    gmag = gmag[errlimitmask]
+    rmag = rmag[errlimitmask]
+    imag = imag[errlimitmask]
+    zmag = zmag[errlimitmask]
+
+    pm_tot, pm_err, gmag, gmag_err, rmag, rmag_err, imag, imag_err, zmag, zmag_err, impute_flags = neighbor_impute(kepmag, jmag, jmag_err, hmag, hmag_err, kmag, kmag_err, pm_tot, gmag, rmag, imag, zmag)
+
+    np.save('good_kepid', kepid)
+
+    np.save('good_kepmag', kepmag)
+    np.save('good_j', jmag)
+    np.save('good_j_err', jmag_err)
+    np.save('good_h', hmag)
+    np.save('good_h_err', hmag_err)
+    np.save('good_k', kmag)
+    np.save('good_k_err', kmag_err)
+    np.save('imp_pm', pm_tot)
+    np.save('imp_pm_err', pm_err)
+    np.save('imp_g', gmag)
+    np.save('imp_g_err', gmag_err)
+    np.save('imp_r', rmag)
+    np.save('imp_r_err', rmag_err)
+    np.save('imp_i', imag)
+    np.save('imp_i_err', imag_err)
+    np.save('imp_z', zmag)
+    np.save('imp_z_err', zmag_err)
+
+
+    np.save('good_polycdpp', poly_cdpp)
+    np.save('good_teff', teff)
+    np.save('good_logg', logg)
+    np.save('good_feh', feh)
+    np.save('good_mass', mass)
+
+    np.save('imp_flags', impute_flags)
+
+    '''
 
 
     jhcolor = jmag - hmag
@@ -277,14 +401,14 @@ if __name__ == '__main__':
     fuzz_jhcolor = make_fuzzy_column(jhcolor, jhcolor_err)
     fuzz_jkcolor = make_fuzzy_column(jkcolor, jkcolor_err)
     fuzz_hkcolor = make_fuzzy_column(hkcolor, hkcolor_err)
-    fuzz_teff_err = make_fuzzy_column(teff_err)
-    fuzz_logg_err = make_fuzzy_column(logg_err)
-    fuzz_jmag_err = make_fuzzy_column(jmag_err)
-    fuzz_hmag_err = make_fuzzy_column(hmag_err)
-    fuzz_kmag_err = make_fuzzy_column(kmag_err)
-    fuzz_pm_tot = make_fuzzy_column(pm_tot)
+    fuzz_pm_tot = make_fuzzy_column(pm_tot, pm_err)
     fuzz_cdpp_tot = make_fuzzy_column(cdpp_tot)
     fuzz_poly_cdpp = make_fuzzy_column(poly_cdpp)
+    fuzz_umag = make_fuzzy_column(umag, umag_err)
+    fuzz_gmag = make_fuzzy_column(gmag, gmag_err)
+    fuzz_rmag = make_fuzzy_column(rmag, rmag_err)
+    fuzz_imag = make_fuzzy_column(imag, imag_err)
+    fuzz_zmag = make_fuzzy_column(zmag, zmag_err)
 
     colorgroup = np.asarray([fuzz_teff])
     trancolor = colorgroup.T
@@ -295,7 +419,7 @@ if __name__ == '__main__':
 
     colnames = ['KepID', 'KepMag', 'Teff', 'log g', 'Metallicity',
         'Mass', 'Radius', 'Distance', 'Jmag', 'Hmag', 'Kmag', 'Proper Motion',
-        'CDPP', 'Poly CDPP']
+        'CDPP', 'Poly CDPP', 'Galactic Latitude','umag', 'gmag', 'rmag', 'imag', 'zmag']
 
 
     infos = [[fuzz_kepid[np.where(indices == i)],
@@ -306,7 +430,13 @@ if __name__ == '__main__':
         fuzz_hmag[np.where(indices==i)], fuzz_kmag[np.where(indices==i)],
         fuzz_pm_tot[np.where(indices==i)],
         fuzz_cdpp_tot[np.where(indices==i)],
-        fuzz_poly_cdpp[np.where(indices==i)]] for i in range(0,nclusters)]
+        fuzz_poly_cdpp[np.where(indices==i)],
+        fuzz_glat[np.where(indices==i)],
+        fuzz_umag[np.where(indices==i)],
+        fuzz_gmag[np.where(indices==i)],
+        fuzz_rmag[np.where(indices==i)],
+        fuzz_imag[np.where(indices==i)],
+        fuzz_zmag[np.where(indices==i)]] for i in range(0,nclusters)]
 
     np.save('TempCluster', infos)
     approxcentroids = [np.mean(infos[i], axis =1) for i in range(0,nclusters)]
@@ -319,7 +449,6 @@ if __name__ == '__main__':
             teffindex = i
         for j in range(0,len(colnames)):
             print colnames[j], approxcentroids[i][j], approxsigma[i][j]
-
         print ('N = ' + str(len(infos[i][0])))
 
     teffmask = np.where(indices == teffindex)
@@ -345,7 +474,13 @@ if __name__ == '__main__':
         fuzz_kmag[teffmask][np.where(indices==i)],
         fuzz_pm_tot[teffmask][np.where(indices==i)],
         fuzz_cdpp_tot[teffmask][np.where(indices==i)],
-        fuzz_poly_cdpp[teffmask][np.where(indices==i)]]
+        fuzz_poly_cdpp[teffmask][np.where(indices==i)],
+        fuzz_glat[teffmask][np.where(indices==i)],
+        fuzz_umag[teffmask][np.where(indices==i)],
+        fuzz_gmag[teffmask][np.where(indices==i)],
+        fuzz_rmag[teffmask][np.where(indices==i)],
+        fuzz_imag[teffmask][np.where(indices==i)],
+        fuzz_zmag[teffmask][np.where(indices==i)]]
         for i in range(0,nclusters)]
 
     np.save('CDPPcluster', infos)
@@ -364,7 +499,7 @@ if __name__ == '__main__':
     loggmask = np.where(indices == loggindex)
 
     colorgroup = np.asarray([fuzz_logg[teffmask][loggmask],
-        fuzz_jhcolor[teffmask][loggmask]])
+        fuzz_jkcolor[teffmask][loggmask]])
     trancolor = colorgroup.T
     cleangroup = whiten(trancolor)
     #cleangroup = trancolor
@@ -384,7 +519,13 @@ if __name__ == '__main__':
         fuzz_kmag[teffmask][loggmask][np.where(indices==i)],
         fuzz_pm_tot[teffmask][loggmask][np.where(indices==i)],
         fuzz_cdpp_tot[teffmask][loggmask][np.where(indices==i)],
-        fuzz_poly_cdpp[teffmask][loggmask][np.where(indices==i)]]
+        fuzz_poly_cdpp[teffmask][loggmask][np.where(indices==i)],
+        fuzz_glat[teffmask][loggmask][np.where(indices==i)],
+        fuzz_umag[teffmask][loggmask][np.where(indices==i)],
+        fuzz_gmag[teffmask][loggmask][np.where(indices==i)],
+        fuzz_rmag[teffmask][loggmask][np.where(indices==i)],
+        fuzz_imag[teffmask][loggmask][np.where(indices==i)],
+        fuzz_zmag[teffmask][loggmask][np.where(indices==i)]]
         for i in range(0,nclusters)]
 
 
@@ -403,14 +544,67 @@ if __name__ == '__main__':
     make_color_color_plots(infos, clustertitles, plottitle, saveloc=saveloc, mode= 'SHOW')
     make_single_col_plots(infos, clustertitles, plottitle, colnames, saveloc=saveloc, mode='SHOW')
 
-    '''
+
     teffname = 'TempCluster.npy'
     cdppname = 'CDPPcluster.npy'
     loggjkname = 'LoggJKcluster.npy'
-    infos = np.load(loggjkname)
-    print 'Number of unique KepIDs in both:', len((np.intersect1d(np.unique(infos[1][0]), np.unique(infos[2][0]))))
-    print 'Number of unique, total samples in M Dwarf Cluster:', len(np.unique(infos[1][0])), len(infos[1][0])
-    print 'Number of unique, total samples in K Dwarf? Cluster', len(np.unique(infos[2][0])), len(infos[2][0])
+    testname = teffname
+    infos = np.load(testname)
+    #print 'Number of unique KepIDs in both:', len((np.intersect1d(np.unique(infos[1][0]), np.unique(infos[2][0]))))
+    #print 'Number of unique, total samples in M Dwarf Cluster:', len(np.unique(infos[1][0])), len(infos[1][0])
+    #print 'Number of unique, total samples in K Dwarf? Cluster', len(np.unique(infos[2][0])), len(infos[2][0])
     #all_cluster_look(teffname, 'Temperature 3 Clusters', mode = 'SHOW')
     #all_cluster_look(cdppname, 'CDPP 5 Clusters', mode = 'SHOW')
-    all_cluster_look(loggjkname, 'Log_g J - K 3 Clusters', mode = 'SHOW')
+    #all_cluster_look(loggjkname, 'Log_g J - K 3 Clusters', mode = 'SHOW')
+    testindex = 2
+    kepids = np.unique(infos[testindex][0])
+    all_ids = np.asarray(ks17.kepid)
+    readmask = np.empty((len(kepids)), dtype = int)
+    occurences = np.empty_like(readmask)
+    for i in range(0,len(kepids)):
+        readindex = np.where(all_ids == kepids[i])[0]
+        readmask[i] = readindex
+        nkep = len(np.where(infos[testindex][0] == kepids[i])[0])
+        occurences[i] = nkep
+    teffs = teff[readmask]
+    loggs = logg[readmask]
+    masses = mass[readmask]
+    rads = radius[readmask]
+    kepmags = kepmag[readmask]
+    jmags = jmag[readmask]
+    hmags = hmag[readmask]
+    kmags = kmag[readmask]
+    print '70%:', len(np.where(occurences > 70)[0])
+    print '75%:', len(np.where(occurences > 75)[0])
+    print '80%:', len(np.where(occurences > 80)[0])
+    print '85%:', len(np.where(occurences > 85)[0])
+    print '90%:', len(np.where(occurences > 90)[0])
+    print '95%:', len(np.where(occurences > 95)[0])
+    print '100%:', len(np.where(occurences == 100)[0])
+    #print len(np.where((occurences > 95) & (rads < 1.0))[0])
+    #print len(np.where((occurences == 100) & (rads > 1.0) & (rads < 2.0))[0])
+    #print len(np.where((occurences == 100) & (rads > 2.0) & (rads < 15.0))[0])
+    #print len(np.where((occurences == 100) & (rads > 15.0))[0])
+    #plt.plot(rads, occurences, '.')
+    #plt.show()
+
+    colnames = ['KepID', 'KepMag', 'Teff', 'log g', 'Metallicity',
+        'Mass', 'Radius', 'Distance', 'Jmag', 'Hmag', 'Kmag', 'Proper Motion',
+        'CDPP', 'Poly CDPP', 'Galactic Latitude','umag', 'gmag', 'rmag', 'imag', 'zmag']
+
+    nclusters = np.shape(infos)[0]
+    approxcentroids = [[np.mean(infos[i,j]) for j in range(0,20)] for i in range(0,nclusters)]
+    approxsigma = [[np.std(infos[i,j]) for j in range(0,20)] for i in range(0,nclusters)]
+    for i in range(0,nclusters):
+        print ('Cluster'+ str(i))
+        for j in range(0,len(colnames)):
+            print colnames[j], approxcentroids[i][j], approxsigma[i][j]
+        print ('N = ' + str(len(infos[i][0])))
+
+    clustertitles = [str(i) for i in range(0,nclusters)]
+    plottitle = 'Log_g J - K'
+    saveloc = 'ks17plots/'
+    #make_color_color_plots(infos, clustertitles, plottitle, saveloc=saveloc, mode= 'SHOW')
+    #make_single_col_plots(infos, clustertitles, plottitle, colnames, saveloc=saveloc, mode='SHOW')
+
+    '''

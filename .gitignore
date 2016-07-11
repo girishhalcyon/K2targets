@@ -84,3 +84,10 @@ CDPPcluster.npy
 cdpp_limit.npy
 LoggJHcluster.npy
 TempCluster.npy
+glat_all.npy
+glat_all.npy
+glat_limit.npy
+gmag_limit.npy
+good_feh.npy
+good_h_err.npy
+*.npy
