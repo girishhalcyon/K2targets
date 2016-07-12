@@ -10,7 +10,7 @@ from treeinterpreter import treeinterpreter as ti
 from matplotlib.ticker import AutoMinorLocator
 
 def get_sample(classlabel = 0,
-    condition = 100, goodcols = [1,8,9,10,11,16,17,18],
+    condition = 100, goodcols = [1,8,9,10,11,13,14, 15, 16],
     infoname = 'LoggJKcluster.npy', infocol = 1):
 
     infos = np.load(infoname)
@@ -33,8 +33,8 @@ def get_sample(classlabel = 0,
             keep_mask[i] = False
     use_mask = np.where(keep_mask)[0]
     np.random.shuffle(use_mask)
-    if len(use_mask) > 100000:
-        use_mask = use_mask[:100000]
+    #if len(use_mask) > 100000:
+    #    use_mask = use_mask[:100000]
 
     single_info = np.empty((len(goodcols)+1, len(infos[infocol][0])))
     single_details = np.empty((len(colnames)+1, len(infos[infocol][0])))
@@ -63,32 +63,27 @@ def get_sample(classlabel = 0,
 if __name__ == '__main__':
     colnames = ['KepID', 'KepMag', 'Teff', 'log g', 'Metallicity',
         'Mass', 'Radius', 'Distance', 'Jmag', 'Hmag', 'Kmag', 'Proper Motion',
-        'CDPP', 'Poly CDPP', 'Galactic Latitude','umag', 'gmag', 'rmag', 'imag', 'zmag', 'Class']
-    goodcols = np.asarray([1,8,9,10,11,16,17,18], dtype = int)
+        'Poly CDPP', 'gmag', 'rmag', 'imag', 'zmag', 'Class']
+    goodcols = np.asarray([1,8,9,10,11,13,14, 15, 16], dtype = int)
     teffname = 'TempCluster.npy'
     cdppname = 'CDPPcluster.npy'
     loggjkname = 'LoggJKcluster.npy'
-    '''
-    #M dwarfs: name=LoggJKcluster.npy; infocol=1; classname=0; occurence=75
-    #Subdwarfs: name=LoggJKcluster.npy; infocol=2; classname=1; occurence=75
-    #Giants: name=CDPPcluster.npy; infocol=3; classname=2; occurence=75
-    #Supergiants: name=CDPPcluster.npy; infocol=4; classname=3; occurence=75
-    #Hot Stars: name=TempCluster.npy; infocol= 1; classname=4; occurence=75
-    #Very Hot Stars: name=TempCluster.npy; infocol= 2; classname=5; occurence=75
-    ks17 = pd.read_csv('ks17.csv', delimiter = '|')
-    m_dwarf_sample, m_dwarf_details =  get_sample(ks17, infocol = 1,
-        condition=75)
-    subdwarf_sample, subdwarf_details = get_sample(ks17,
-        classlabel=1,infocol=2, condition=75)
-    giant_sample, giant_details = get_sample(ks17,
-        classlabel=2, infocol=3, infoname=cdppname, condition=75)
-    supergiant_sample, supergiant_details = get_sample(ks17,
-        classlabel=3, infocol=4, infoname=cdppname, condition=75)
-    hot_stars, hot_stars_details = get_sample(ks17,
-        classlabel=4, infocol=1, infoname=teffname, condition=75)
-    very_hot_stars, very_hot_stars_details = get_sample(ks17,
-        classlabel=5, infocol=2, infoname=teffname, condition=75)
 
+    #M dwarfs: name=LoggJKcluster.npy; infocol=2; classname=0; occurence=100
+    #Subdwarfs: name=LoggJKcluster.npy; infocol=0; classname=1; occurence=100
+    #Giants: name=CDPPcluster.npy; infocol=3; classname=2; occurence=100
+    #Supergiants: name=CDPPcluster.npy; infocol=4; classname=3; occurence=100
+    #Hot Stars: name=TempCluster.npy; infocol= 1; classname=4; occurence=100
+    #Very Hot Stars: name=TempCluster.npy; infocol= 0; classname=5; occurence=100
+    ks17 = pd.read_csv('ks17.csv', delimiter = '|')
+    m_dwarf_sample, m_dwarf_details =  get_sample(classlabel = 0, infocol = 2,
+        condition=100)
+    subdwarf_sample, subdwarf_details = get_sample(classlabel=1,infocol=0, condition=100)
+    giant_sample, giant_details = get_sample(classlabel=2, infocol=3, infoname=cdppname, condition=100)
+    supergiant_sample, supergiant_details = get_sample(classlabel=3, infocol=4, infoname=cdppname, condition=100)
+    hot_stars, hot_stars_details = get_sample(classlabel=4, infocol=1, infoname=teffname, condition=100)
+    very_hot_stars, very_hot_stars_details = get_sample(classlabel=5, infocol=0, infoname=teffname, condition=100)
+    '''
     K2C5dwarfs_test, K2C5dwarfs_details = get_sample(infoname = 'C5infos.npy',
         infocol=0, classlabel=8, condition = 0,
         goodcols = [11, 19, 20, 21, 22, 15, 16, 17])
@@ -126,7 +121,7 @@ if __name__ == '__main__':
     np.save('C6dwarfRF_details', K2C6dwarfs_details)
     np.save('C6giantRF_details', K2C6giants_details)
     np.save('C6dgRF_details', K2C6dg_details)
-
+    '''
     m_dwarf_train = int(round(float(np.shape(m_dwarf_sample)[0])*0.6))
     m_dwarf_calibrate = int(round(float(np.shape(m_dwarf_sample)[0])*0.8))
     subdwarf_train = int(round(float(np.shape(subdwarf_sample)[0])*0.6))
@@ -187,7 +182,7 @@ if __name__ == '__main__':
     np.save('y_test', y_test)
     np.save('y_valid',y_valid)
     np.save('test_details', test_details)
-    '''
+
     X_train = np.load('X_train.npy')
     y_train = np.load('y_train.npy')
     X_test = np.load('X_test.npy')
@@ -198,11 +193,11 @@ if __name__ == '__main__':
 
     feature_names = [colnames[i] for i in goodcols]
 
-    print 'Imputing NaNs'
-    imp = Imputer(missing_values='NaN', strategy='mean', axis=0)
-    X_train = imp.fit_transform(X_train)
-    X_valid = imp.transform(X_valid)
-    X_test = imp.transform(X_test)
+    #print 'Imputing NaNs'
+    #imp = Imputer(missing_values='NaN', strategy='mean', axis=0)
+    #X_train = imp.fit_transform(X_train)
+    #X_valid = imp.transform(X_valid)
+    #X_test = imp.transform(X_test)
     '''
     K2C5dwarfs_test = imp.transform(np.load('C5dwarfRF_test.npy'))
     K2C6dwarfs_test = imp.transform(np.load('C6dwarfRF_test.npy'))
@@ -217,8 +212,8 @@ if __name__ == '__main__':
     K2C5dg_details = imp.transform(np.load('C5dgRF_details.npy'))
     K2C6dg_details = imp.transform(np.load('C6dgRF_details.npy'))
     '''
-    clf = RandomForestClassifier(n_estimators=80)
-    ''''
+    clf = RandomForestClassifier(n_estimators=80, class_weight = 'balanced_subsample', n_jobs = -1)
+
     print 'Training Forest'
     clf.fit(X_train, y_train)
     print 'Predicting Test'
@@ -237,6 +232,7 @@ if __name__ == '__main__':
     print 'Log-loss score:', sig_score
     print 'Normal score:', sig_clf.score(X_test, y_test)
     print 'Uncalibrated Normal score:', clf.score(X_test, y_test)
+    '''
     K2C5giants_classes = sig_clf.predict(K2C5giants_test)
     K2C5giants_class_probs = sig_clf.predict_proba(K2C5giants_test)
     K2C5dwarfs_classes = sig_clf.predict(K2C5dwarfs_test)
@@ -254,7 +250,7 @@ if __name__ == '__main__':
         K2C6giants_classes, K2C6giants_class_probs])
     np.save('K2C6_dwarfs_RF_output', [K2C6dwarfs_test, K2C6dwarfs_details,
         K2C6dwarfs_classes, K2C6dwarfs_class_probs])
-    '''
+
     plot_idx = 1
     n_classes = 6
     n_estimators = 80
@@ -325,7 +321,7 @@ if __name__ == '__main__':
                 model_details2 += ' with {} estimators'.format(len(model2.estimators_))
             print( model_details2 + ' with features: ' + feature_names[pair[0]] +', ' +feature_names[pair[1]] + ' has a score of '+ str(uncal_scores) )
 
-    labels = ['Kp', 'J', 'H', 'K', r'$\mu$', '$b$', 'u', 'g', 'r', 'i', 'z']
+    labels = ['Kp', 'J', 'H', 'K', r'$\mu$', 'g', 'r', 'i', 'z']
 
     column_labels = labels
     row_labels = labels
@@ -401,3 +397,4 @@ if __name__ == '__main__':
     plt.axis('tight')
     plt.suptitle('Accuracy of RandomForestClassifier with Kepler Sample (Trained on 60%, Calibrated on 20%, Tested on 20%)')
     plt.savefig('RandomForestScoreCal.pdf', dpi = 3000)
+    '''

@@ -53,7 +53,7 @@ def blank_convert(oldarr):
         if oldarr[i] == '':
             newarr[i] = np.nan
         elif oldarr[i] == None:
-            newarr[i] = np.inf
+            newarr[i] = np.nan
         else:
             newarr[i] = float(oldarr[i])
     return newarr
@@ -254,7 +254,7 @@ if __name__ == '__main__':
     #plt.scatter(dwarfinfo[11], dwarfinfo[7], marker = 'x', c = 'k')
     #plt.scatter(dginfo[11], dginfo[7], marker = '+', c= 'c')
     plt.subplot(122)
-    
+
     #plt.show()
 
     dwarfinfo = np.load('C6dwarfinfo.npy')
