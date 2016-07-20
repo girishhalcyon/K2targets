@@ -8,9 +8,10 @@ from sklearn.preprocessing import Imputer
 from sklearn.utils import shuffle
 from treeinterpreter import treeinterpreter as ti
 from matplotlib.ticker import AutoMinorLocator
+from sklearn.externals import joblib
 
 def get_sample(classlabel = 0,
-    condition = 100, goodcols = [1,8,9,10,11,13,14, 15, 16],
+    condition = 100, goodcols = [1,8,9,10,13,14, 15, 16],
     infoname = 'LoggJKcluster.npy', infocol = 1):
 
     infos = np.load(infoname)
@@ -64,132 +65,107 @@ if __name__ == '__main__':
     colnames = ['KepID', 'KepMag', 'Teff', 'log g', 'Metallicity',
         'Mass', 'Radius', 'Distance', 'Jmag', 'Hmag', 'Kmag', 'Proper Motion',
         'Poly CDPP', 'gmag', 'rmag', 'imag', 'zmag', 'Class']
-    goodcols = np.asarray([1,8,9,10,11,13,14, 15, 16], dtype = int)
+    goodcols = np.asarray([1,8,9,10,13,14, 15, 16], dtype = int)
+    #KepMag, J, H, K, PM, g, r, i, z
     teffname = 'TempCluster.npy'
     cdppname = 'CDPPcluster.npy'
     loggjkname = 'LoggJKcluster.npy'
 
     #M dwarfs: name=LoggJKcluster.npy; infocol=2; classname=0; occurence=100
-    #Subdwarfs: name=LoggJKcluster.npy; infocol=0; classname=1; occurence=100
+    #Otherdwarfs: name=LoggJKcluster.npy; infocol=0; classname=1; occurence=100
     #Giants: name=CDPPcluster.npy; infocol=3; classname=2; occurence=100
     #Supergiants: name=CDPPcluster.npy; infocol=4; classname=3; occurence=100
-    #Hot Stars: name=TempCluster.npy; infocol= 1; classname=4; occurence=100
+    #Hot Stars: name=TempCluster.npy; infocol= 2; classname=4; occurence=100
     #Very Hot Stars: name=TempCluster.npy; infocol= 0; classname=5; occurence=100
-    ks17 = pd.read_csv('ks17.csv', delimiter = '|')
+
     m_dwarf_sample, m_dwarf_details =  get_sample(classlabel = 0, infocol = 2,
         condition=100)
-    subdwarf_sample, subdwarf_details = get_sample(classlabel=1,infocol=0, condition=100)
+    subdwarf_sample, subdwarf_details = get_sample(classlabel= 1,infocol=0, condition=100)
     giant_sample, giant_details = get_sample(classlabel=2, infocol=3, infoname=cdppname, condition=100)
-    supergiant_sample, supergiant_details = get_sample(classlabel=3, infocol=4, infoname=cdppname, condition=100)
-    hot_stars, hot_stars_details = get_sample(classlabel=4, infocol=1, infoname=teffname, condition=100)
-    very_hot_stars, very_hot_stars_details = get_sample(classlabel=5, infocol=0, infoname=teffname, condition=100)
-    '''
-    K2C5dwarfs_test, K2C5dwarfs_details = get_sample(infoname = 'C5infos.npy',
-        infocol=0, classlabel=8, condition = 0,
-        goodcols = [11, 19, 20, 21, 22, 15, 16, 17])
+    #supergiant_sample, supergiant_details = get_sample(classlabel=2, infocol=4, infoname=cdppname, condition=100)
+    hot_stars, hot_stars_details = get_sample(classlabel=3, infocol=2, infoname=teffname, condition=100)
+    #very_hot_stars, very_hot_stars_details = get_sample(classlabel=3, infocol=0, infoname=teffname, condition=100)
 
-    K2C5giants_test, K2C5giants_details = get_sample(infoname = 'C5infos.npy',
-        infocol=1, classlabel=8, condition = 0,
-        goodcols = [11, 19, 20, 21, 22, 15, 16, 17])
-
-    K2C5dg_test, K2C5dg_details = get_sample(infoname = 'C5infos.npy',
-        infocol=2, classlabel=8, condition = 0,
-        goodcols = [11, 19, 20, 21, 22, 15, 16, 17])
-
-    K2C6dwarfs_test, K2C6dwarfs_details = get_sample(infoname = 'C6infos.npy',
-        infocol=0, classlabel=8, condition = 0,
-        goodcols = [11, 19, 20, 21, 22, 15, 16, 17])
-
-    K2C6giants_test, K2C6giants_details = get_sample(infoname = 'C6infos.npy',
-        infocol=1, classlabel=8, condition = 0,
-        goodcols = [11, 19, 20, 21, 22, 15, 16, 17])
-
-    K2C6dg_test, K2C6dg_details = get_sample(infoname = 'C6infos.npy',
-        infocol=2, classlabel=8, condition = 0,
-        goodcols = [11, 19, 20, 21, 22, 15, 16, 17])
-
-    np.save('C5dwarfRF_test', K2C5dwarfs_test)
-    np.save('C5giantRF_test', K2C5giants_test)
-    np.save('C5dgRF_test', K2C5dg_test)
-    np.save('C6dwarfRF_test', K2C6dwarfs_test)
-    np.save('C6giantRF_test', K2C6giants_test)
-    np.save('C6dgRF_test', K2C6dg_test)
-
-    np.save('C5dwarfRF_details', K2C5dwarfs_details)
-    np.save('C5giantRF_details', K2C5giants_details)
-    np.save('C5dgRF_details', K2C5dg_details)
-    np.save('C6dwarfRF_details', K2C6dwarfs_details)
-    np.save('C6giantRF_details', K2C6giants_details)
-    np.save('C6dgRF_details', K2C6dg_details)
-    '''
     m_dwarf_train = int(round(float(np.shape(m_dwarf_sample)[0])*0.6))
     m_dwarf_calibrate = int(round(float(np.shape(m_dwarf_sample)[0])*0.8))
     subdwarf_train = int(round(float(np.shape(subdwarf_sample)[0])*0.6))
     subdwarf_calibrate = int(round(float(np.shape(subdwarf_sample)[0])*0.8))
     giant_train = int(round(float(np.shape(giant_sample)[0])*0.6))
     giant_calibrate = int(round(float(np.shape(giant_sample)[0])*0.8))
-    supergiant_train = int(round(float(np.shape(supergiant_sample)[0])*0.6))
-    supergiant_calibrate = int(round(float(np.shape(supergiant_sample)[0])*0.8))
+    #supergiant_train = int(round(float(np.shape(supergiant_sample)[0])*0.6))
+    #supergiant_calibrate = int(round(float(np.shape(supergiant_sample)[0])*0.8))
     hot_train = int(round(float(np.shape(hot_stars)[0])*0.6))
     hot_calibrate = int(round(float(np.shape(hot_stars)[0])*0.8))
-    very_hot_train = int(round(float(np.shape(very_hot_stars)[0])*0.6))
-    very_hot_calibrate = int(round(float(np.shape(very_hot_stars)[0])*0.8))
+    #very_hot_train = int(round(float(np.shape(very_hot_stars)[0])*0.6))
+    #very_hot_calibrate = int(round(float(np.shape(very_hot_stars)[0])*0.8))
+    '''
+    train_stack = np.vstack((m_dwarf_sample[:m_dwarf_calibrate],
+        subdwarf_sample[:subdwarf_calibrate],
+        giant_sample[:giant_calibrate], supergiant_sample[:supergiant_calibrate],
+        hot_stars[:hot_calibrate], very_hot_stars[:very_hot_calibrate]))
 
-    train_stack = np.vstack((m_dwarf_sample[:m_dwarf_train],
-        subdwarf_sample[:subdwarf_train],
-        giant_sample[:giant_train], supergiant_sample[:supergiant_train],
-        hot_stars[:hot_train], very_hot_stars[:very_hot_train]))
+    train_details = np.vstack((m_dwarf_details[:m_dwarf_calibrate],
+        subdwarf_details[:subdwarf_calibrate],
+        giant_details[:giant_calibrate], supergiant_details[:supergiant_calibrate],
+        hot_stars_details[:hot_calibrate], very_hot_stars_details[:very_hot_calibrate]))
 
-    train_details = np.vstack((m_dwarf_details[:m_dwarf_train],
-        subdwarf_details[:subdwarf_train],
-        giant_details[:giant_train], supergiant_details[:supergiant_train],
-        hot_stars_details[:hot_train], very_hot_stars_details[:very_hot_train]))
-
-    calibrate_stack = np.vstack((m_dwarf_sample[m_dwarf_train:m_dwarf_calibrate],
-        subdwarf_sample[subdwarf_train:subdwarf_calibrate],
-        giant_sample[giant_train:giant_calibrate],
-        supergiant_sample[supergiant_train:supergiant_calibrate],
-        hot_stars[hot_train:hot_calibrate],
-        very_hot_stars[very_hot_train:very_hot_calibrate]))
-
-    calibrate_details = np.vstack((m_dwarf_details[m_dwarf_train:m_dwarf_calibrate],
-        subdwarf_details[subdwarf_train:subdwarf_calibrate],
-        giant_details[giant_train:giant_calibrate],
-        supergiant_details[supergiant_train:supergiant_calibrate],
-        hot_stars_details[hot_train:hot_calibrate],
-        very_hot_stars_details[very_hot_train:very_hot_calibrate]))
-
-    test_stack = np.vstack((m_dwarf_sample[m_dwarf_calibrate:],
+    calibrate_stack = np.vstack((m_dwarf_sample[m_dwarf_calibrate:],
         subdwarf_sample[subdwarf_calibrate:],
-        giant_sample[giant_calibrate:], supergiant_sample[supergiant_calibrate:],
-        hot_stars[hot_calibrate:], very_hot_stars[very_hot_calibrate:]))
+        giant_sample[giant_calibrate:],
+        supergiant_sample[supergiant_calibrate:],
+        hot_stars[hot_calibrate:],
+        very_hot_stars[very_hot_calibrate:]))
 
-    test_details = np.vstack((m_dwarf_details[m_dwarf_calibrate:],
+    calibrate_details = np.vstack((m_dwarf_details[m_dwarf_calibrate:],
         subdwarf_details[subdwarf_calibrate:],
-        giant_details[giant_calibrate:], supergiant_details[supergiant_calibrate:],
-        hot_stars_details[hot_calibrate:], very_hot_stars_details[very_hot_calibrate:]))
+        giant_details[giant_calibrate:],
+        supergiant_details[supergiant_calibrate:],
+        hot_stars_details[hot_calibrate:],
+        very_hot_stars_details[very_hot_calibrate:]))
+    '''
+    train_stack = np.vstack((m_dwarf_sample[:m_dwarf_calibrate],
+        subdwarf_sample[:subdwarf_calibrate],
+        giant_sample[:giant_calibrate],
+        hot_stars[:hot_calibrate]))
+
+    train_details = np.vstack((m_dwarf_details[:m_dwarf_calibrate],
+        subdwarf_details[:subdwarf_calibrate],
+        giant_details[:giant_calibrate],
+        hot_stars_details[:hot_calibrate]))
+
+    calibrate_stack = np.vstack((m_dwarf_sample[m_dwarf_calibrate:],
+        subdwarf_sample[subdwarf_calibrate:],
+        giant_sample[giant_calibrate:],
+        hot_stars[hot_calibrate:]))
+
+    calibrate_details = np.vstack((m_dwarf_details[m_dwarf_calibrate:],
+        subdwarf_details[subdwarf_calibrate:],
+        giant_details[giant_calibrate:],
+        hot_stars_details[hot_calibrate:]))
+
+
 
     X_train = train_stack[:,:-1]
     y_train = train_stack[:,-1]
-    X_test = test_stack[:,:-1]
-    y_test = test_stack[:,-1]
+    #X_test = test_stack[:,:-1]
+    #y_test = test_stack[:,-1]
     X_valid = calibrate_stack[:,:-1]
     y_valid = calibrate_stack[:,-1]
     np.save('X_train', X_train)
-    np.save('X_test', X_test)
+    #np.save('X_test', X_test)
     np.save('X_valid', X_valid)
     np.save('y_train',y_train)
-    np.save('y_test', y_test)
+    #np.save('y_test', y_test)
     np.save('y_valid',y_valid)
-    np.save('test_details', test_details)
+    #np.save('test_details', test_details)
 
-    X_train = np.load('X_train.npy')
-    y_train = np.load('y_train.npy')
-    X_test = np.load('X_test.npy')
-    y_test = np.load('y_test.npy')
-    X_valid = np.load('X_valid.npy')
-    y_valid = np.load('y_valid.npy')
-    test_details = np.load('test_details.npy')
+    #X_train = np.load('X_train.npy')
+    #y_train = np.load('y_train.npy')
+    #X_test = np.load('X_test.npy')
+    #y_test = np.load('y_test.npy')
+    #X_valid = np.load('X_valid.npy')
+    #y_valid = np.load('y_valid.npy')
+    #test_details = np.load('test_details.npy')
 
     feature_names = [colnames[i] for i in goodcols]
 
@@ -198,58 +174,31 @@ if __name__ == '__main__':
     #X_train = imp.fit_transform(X_train)
     #X_valid = imp.transform(X_valid)
     #X_test = imp.transform(X_test)
-    '''
-    K2C5dwarfs_test = imp.transform(np.load('C5dwarfRF_test.npy'))
-    K2C6dwarfs_test = imp.transform(np.load('C6dwarfRF_test.npy'))
-    K2C5giants_test = imp.transform(np.load('C5giantRF_test.npy'))
-    K2C6giants_test = imp.transform(np.load('C6giantRF_test.npy'))
-    K2C5dg_test = imp.transform(np.load('C5dgRF_test.npy'))
-    K2C6dg_test = imp.transform(np.load('C6dgRF_test.npy'))
-    K2C5dwarfs_details= np.load('C5dwarfRF_details.npy')
-    K2C6dwarfs_details = np.load('C6dwarfRF_details.npy')
-    K2C5giants_details = np.load('C5giantRF_details.npy')
-    K2C6giants_details = np.load('C6giantRF_details.npy')
-    K2C5dg_details = imp.transform(np.load('C5dgRF_details.npy'))
-    K2C6dg_details = imp.transform(np.load('C6dgRF_details.npy'))
-    '''
-    clf = RandomForestClassifier(n_estimators=80, class_weight = 'balanced_subsample', n_jobs = -1)
+
+    clf = RandomForestClassifier(n_estimators=100, class_weight = 'balanced_subsample',oob_score=False,n_jobs = -1)
 
     print 'Training Forest'
     clf.fit(X_train, y_train)
-    print 'Predicting Test'
-    clf_probs = clf.predict_proba(X_test)
+    #print 'Predicting Test'
+    #clf_probs = clf.predict_proba(X_test)
     print 'Calibrating'
     sig_clf = CalibratedClassifierCV(clf, method="sigmoid", cv="prefit")
     sig_clf.fit(X_valid, y_valid)
-    sig_clf_probs = sig_clf.predict_proba(X_test)
-    sig_score = log_loss(y_test, sig_clf_probs)
+    #sig_clf_probs = sig_clf.predict_proba(X_test)
+    #sig_score = log_loss(y_test, sig_clf_probs)
 
     feature_score =  clf.feature_importances_
     feature_score = feature_score/np.sum(feature_score)
     print 'Feature Importances (Normalized to Total):'
     for i in range(0,len(feature_names)):
         print feature_names[i], feature_score[i]
-    print 'Log-loss score:', sig_score
-    print 'Normal score:', sig_clf.score(X_test, y_test)
-    print 'Uncalibrated Normal score:', clf.score(X_test, y_test)
+    #print 'Log-loss score:', sig_score
+    #print 'Normal score:', sig_clf.score(X_test, y_test)
+    #print 'Uncalibrated Normal score:', clf.score(X_test, y_test)
+    joblib.dump(sig_clf, 'CalibratedRF_2.pkl')
+    joblib.dump(clf, 'UncalibratedRF_2.pkl')
     '''
-    K2C5giants_classes = sig_clf.predict(K2C5giants_test)
-    K2C5giants_class_probs = sig_clf.predict_proba(K2C5giants_test)
-    K2C5dwarfs_classes = sig_clf.predict(K2C5dwarfs_test)
-    K2C5dwarfs_class_probs = sig_clf.predict_proba(K2C5dwarfs_test)
-    K2C6giants_classes = sig_clf.predict(K2C6giants_test)
-    K2C6giants_class_probs = sig_clf.predict_proba(K2C6giants_test)
-    K2C6dwarfs_classes = sig_clf.predict(K2C6dwarfs_test)
-    K2C6dwarfs_class_probs = sig_clf.predict_proba(K2C6dwarfs_test)
 
-    np.save('K2C5_dwarfs_RF_output', [K2C5dwarfs_test, K2C5dwarfs_details,
-        K2C5dwarfs_classes, K2C5dwarfs_class_probs])
-    np.save('K2C5_giants_RF_output', [K2C5giants_test, K2C5giants_details,
-        K2C5giants_classes, K2C5giants_class_probs])
-    np.save('K2C6_giants_RF_output', [K2C6giants_test, K2C6giants_details,
-        K2C6giants_classes, K2C6giants_class_probs])
-    np.save('K2C6_dwarfs_RF_output', [K2C6dwarfs_test, K2C6dwarfs_details,
-        K2C6dwarfs_classes, K2C6dwarfs_class_probs])
 
     plot_idx = 1
     n_classes = 6

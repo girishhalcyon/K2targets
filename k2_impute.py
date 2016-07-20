@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import pdb
 
 
 
@@ -82,24 +83,36 @@ def neighbor_impute(old_kep, old_j, old_h, old_k,
     #Save variances of all parameters to constants
     kep_var = np.nanvar(old_kep)
     j_var = np.nanvar(old_j)
-    h_var = np.nanvar(old_h)
-    k_var = np.nanvar(old_k)
 
-    pm_var = np.nanvar(old_pm)
+    old_jh = old_j - old_h
+    jh_var = np.nanvar(old_jh)
+
+    old_hk = old_h - old_k
+    hk_var = np.nanvar(old_hk)
+
     g_var = np.nanvar(old_g)
-    r_var = np.nanvar(old_r)
-    i_var = np.nanvar(old_i)
-    z_var = np.nanvar(old_z)
+
+    old_gr = old_g - old_r
+    gr_var = np.nanvar(old_gr)
+
+    old_ri = old_r - old_i
+    ri_var = np.nanvar(old_ri)
+
+    old_iz = old_i - old_z
+    iz_var = np.nanvar(old_iz)
     #Create array to keep track of what parameters have been imputed
-    impute_flags = np.asarray(['0']*len(old_kep))
+    temp_flags = ['0']*len(old_kep)
+    impute_flags = np.array(['0']*len(old_kep), dtype = 'S9')
 
 
-    good_params = [old_kep, old_j, old_h, old_k, old_pm, old_g, old_r, old_i, old_z]
-    good_vars = [kep_var, j_var, h_var, k_var, pm_var, g_var, r_var, i_var, z_var]
+    good_params = [old_kep, old_j, old_jh, old_hk, old_g, old_gr, old_ri, old_iz]
+    good_vars = [kep_var, j_var, jh_var, hk_var, g_var, gr_var, ri_var, iz_var]
     all_old= [old_pm, old_g, old_r, old_i, old_z, old_j, old_h, old_k]
     all_new =[np.copy(old_pm), np.copy(old_g), np.copy(old_r), np.copy(old_i), np.copy(old_z), np.copy(old_j), np.copy(old_h), np.copy(old_k)]
     all_err = [new_pm_err, new_g_err, new_r_err, new_i_err, new_z_err, new_j_err, new_h_err, new_k_err]
     flags = ['p', 'g', 'r', 'i', 'z', 'J', 'H', 'K']
+
+
 
     for i in range(0,len(all_old)):
         old_param = all_old[i]
@@ -111,22 +124,23 @@ def neighbor_impute(old_kep, old_j, old_h, old_k,
         bad_means = np.empty((len(impute_mask[0])))
         bad_errs = np.empty((len(impute_mask[0])))
         for j in range(0,len(impute_mask[0])):
-            print j, ' out of ', all_bad_len
-            impute_flags[impute_mask][j] += flags[i] #Update imputation flag
+            #print j, ' out of ', all_bad_len
+            #print impute_flags[impute_mask][j]
+            index = impute_mask[0][j]
+            #print index
+            new_flag = impute_flags[index] + flags[i]
+            impute_flags[index] = new_flag #Update imputation flag
             sqdist = np.zeros((len(good_mask[0]))) #Empty array to store distances from current unknown datapoint to known datapoints
             goodcounts = np.zeros_like(sqdist) #Keeps track of how many parameters have been used to calculate distance
-            for k in range(0,len(good_mask[0])):
-                for h in range(0,len(good_params)):
-                    temp_sqdist = ((good_params[h][impute_mask][j] -
-                        good_params[h][good_mask][k])**2.0)/good_vars[h] #Variance normalized distance
-                    if np.isfinite(temp_sqdist):
-                        if temp_sqdist == 0.0:
-                            #print 'Identical'
-                            pass
-                        else:
-                            #print good_params[h][impute_mask][j], good_params[h][good_mask][k], temp_sqdist
-                            sqdist[k] += temp_sqdist
-                            goodcounts[k] += 1
+            for h in range(0,len(good_params)):
+                impute_copy = np.asarray([good_params[h][impute_mask][j]]*len(good_mask[0]))
+                temp_sqdist = ((impute_copy -
+                good_params[h][good_mask])**2.0)/good_vars[h] #Variance normalized distance
+                temp_sqdist_mask = np.where((temp_sqdist != 0.0) & (np.isfinite(temp_sqdist)))
+                goodcounts[temp_sqdist_mask] += 1
+                sqdist[temp_sqdist_mask] += temp_sqdist[temp_sqdist_mask]
+            low_counts = np.where(goodcounts < 3)
+            sqdist[low_counts] = sqdist[low_counts] + np.max(sqdist)
             sqdist = sqdist/goodcounts #Divide by total number of parameters used in distance
             sort_mask = np.argsort(sqdist)
             sort_var = old_param[good_mask][sort_mask] #Sort desired parameter values acccording to distances
@@ -140,8 +154,8 @@ def neighbor_impute(old_kep, old_j, old_h, old_k,
                 median_dist = np.median(sort_var)
                 dist_sigma = abs(sort_var - median_dist)/np.std(sort_var)
             bad_means[j] = np.average(sort_var, weights=1.0/sqdist)
-            print bad_means[j], np.std(sort_var) #Assign mean of closest datapoints as imputed value
-            print np.nanmean(all_new[i]), np.nanstd(all_err[i])
+            #print bad_means[j], np.std(sort_var) #Assign mean of closest datapoints as imputed value
+            #print np.nanmean(all_new[i]), np.nanmean(all_err[i])
             bad_errs[j] = np.std(sort_var) #Assign standard deviation as error
         all_new[i][impute_mask] = bad_means
         all_err[i][impute_mask] = bad_errs
@@ -157,6 +171,8 @@ def neighbor_impute(old_kep, old_j, old_h, old_k,
     new_i_err = all_err[3]
     new_z = all_new[4]
     new_z_err = all_err[4]
+    replace_z = np.where(np.isfinite(new_z_err) == False)
+    new_z_err[replace_z] = np.median(new_z_err[np.where(np.isfinite(new_z_err))])
     new_j = all_new[5]
     new_j_err = all_err[5]
     new_h = all_new[6]
@@ -164,8 +180,7 @@ def neighbor_impute(old_kep, old_j, old_h, old_k,
     new_k = all_new[7]
     new_k_err = all_err[7]
 
-    return new_pm, new_pm_err, new_g, new_g_err, new_r, new_r_err, new_i, new_i_err, new_z, new_z_err,
-        new_j, new_j_err, new_h, new_h_err, new_k, new_k_err, impute_flags
+    return new_pm, new_pm_err, new_g, new_g_err, new_r, new_r_err, new_i, new_i_err, new_z, new_z_err, new_j, new_j_err, new_h, new_h_err, new_k, new_k_err, impute_flags
 
 
 def fill_unimpute(find_epics, epics, decs, pmras, pmdecs, Teffs, metals, Rads, masses, Dists, allmags, allmagerrs, pmra_errs, pmdec_errs):
@@ -234,7 +249,7 @@ def impute_fill(unimpute_catalog, knn = 50):
     old_g = unimpute_catalog[13]
     old_r = unimpute_catalog[15]
     old_i = unimpute_catalog[17]
-    old_z = unimpute_catalog[18]
+    old_z = unimpute_catalog[19]
     old_j_err = unimpute_catalog[8]
     old_h_err = unimpute_catalog[10]
     old_k_err = unimpute_catalog[12]
@@ -264,7 +279,7 @@ def impute_fill(unimpute_catalog, knn = 50):
     new_catalog[21] = new_pm
     new_catalog[22] = new_pm_err
 
-    return new_catalog
+    return new_catalog, impute_flags
 
 if __name__ == '__main__':
     ##SECTION: Generating new INFO files##
@@ -318,7 +333,28 @@ if __name__ == '__main__':
         allmetals, allRads, allmasses, allDists, allmags, allmagerrs, allpmRA_errs, allpmDEC_errs)
     np.save('C6_unimpute_catalog', C6_unimpute_catalog)
     '''
+
     C5_unimpute_catalog = np.load('C5_unimpute_catalog.npy')
-    C5_impute_catalog = impute_fill(C5_unimpute_catalog)
+    C5_impute_catalog, C5_impute_flags = impute_fill(C5_unimpute_catalog)
+    np.save('C5_impute_catalog', C5_impute_catalog)
+    np.save('C5_impute_flags', C5_impute_flags)
+    print 'SAVED C5'
     C6_unimpute_catalog = np.load('C6_unimpute_catalog.npy')
-    C6_impute_catalog = impute_fill(C6_unimpute_catalog)
+    C6_impute_catalog, C6_impute_flags = impute_fill(C6_unimpute_catalog)
+    np.save('C6_impute_catalog', C6_impute_catalog)
+    np.save('C6_impute_flags', C6_impute_flags)
+
+    C5_impute_catalog = np.load('C5_impute_catalog.npy')
+    C6_impute_catalog = np.load('C6_impute_catalog.npy')
+    new_z_err = C5_impute_catalog[20]
+    replace_z = np.where(np.isfinite(new_z_err) == False)
+    new_z_err[replace_z] = np.median(new_z_err[np.where(np.isfinite(new_z_err))])
+    C5_impute_catalog[20] = new_z_err
+    new_z_err = C6_impute_catalog[20]
+    replace_z = np.where(np.isfinite(new_z_err) == False)
+    new_z_err[replace_z] = np.median(new_z_err[np.where(np.isfinite(new_z_err))])
+    C6_impute_catalog[20] = new_z_err
+    np.save('C5_impute_catalog', C5_impute_catalog)
+    np.save('C6_impute_catalog', C6_impute_catalog)
+    for i in range(0,np.shape(C5_impute_catalog)[0]):
+        print len(np.where(np.isfinite(C5_impute_catalog[i]) == False)[0]), len(np.where(np.isfinite(C6_impute_catalog[i]) == False)[0])

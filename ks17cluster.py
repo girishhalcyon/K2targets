@@ -2,21 +2,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.cluster.vq import whiten, kmeans2
-from sklearn.cluster import MeanShift, estimate_bandwidth
-from sklearn.cluster import DBSCAN as dbs
-from sklearn.preprocessing import StandardScaler
 from filter_props import read_all
 
-def make_fuzzy_column(col, colerr = [np.nan]):
+def make_fuzzy_column(col, colerr = [np.nan], fuzz_factor = 100):
     samples = len(col)
-    newcol = np.empty((samples*100))
+    newcol = np.empty((samples*fuzz_factor))
     for i in range(0,len(col)):
         sample_mean = col[i]
         if ((np.isfinite(colerr[0])) & (np.isfinite(col[0]))):
             sample_err= colerr[i]
-            newcol[100*i:100*i+100] = np.random.normal(sample_mean, sample_err, 100)
+            newcol[fuzz_factor*i:fuzz_factor*i+fuzz_factor] = np.random.normal(sample_mean, sample_err, 100)
         else:
-            newcol[100*i:100*i+100] = np.asarray([sample_mean]*100)
+            newcol[fuzz_factor*i:fuzz_factor*i+fuzz_factor] = np.asarray([sample_mean]*fuzz_factor)
     return newcol
 
 def get_pm_tot(kepids, pmfile = 'pm_all.npy'):
@@ -124,10 +121,10 @@ def all_cluster_look(clustername, plottitle, saveloc = 'ks17plots/', mode = 'SHO
     infos = np.load(clustername)
     colnames = ['KepID', 'KepMag', 'Teff', 'log g', 'Metallicity',
         'Mass', 'Radius', 'Distance', 'Jmag', 'Hmag', 'Kmag', 'Proper Motion',
-        'CDPP', 'Poly CDPP', 'Galactic Latitude','umag', 'gmag', 'rmag', 'imag', 'zmag']
+        'Poly CDPP', 'gmag', 'rmag', 'imag', 'zmag']
     nclusters = np.shape(infos)[0]
-    approxcentroids = [[np.mean(infos[i,j]) for j in range(0,20)] for i in range(0,nclusters)]
-    approxsigma = [[np.std(infos[i,j]) for j in range(0,20)] for i in range(0,nclusters)]
+    approxcentroids = [[np.mean(infos[i,j]) for j in range(0,len(colnames))] for i in range(0,nclusters)]
+    approxsigma = [[np.std(infos[i,j]) for j in range(0,len(colnames))] for i in range(0,nclusters)]
     for i in range(0,nclusters):
         print ('Cluster'+ str(i))
         for j in range(0,len(colnames)):
@@ -156,20 +153,29 @@ def neighbor_impute(old_kep, old_j, old_h, old_k,
     #Save variances of good parameters to constants
     kep_var = np.nanvar(old_kep)
     j_var = np.nanvar(old_j)
-    h_var = np.nanvar(old_h)
-    k_var = np.nanvar(old_k)
 
-    pm_var = np.nanvar(old_pm)
+    old_jh = old_j - old_h
+    jh_var = np.nanvar(old_jh)
+
+    old_hk = old_h - old_k
+    hk_var = np.nanvar(old_hk)
+
     g_var = np.nanvar(old_g)
-    r_var = np.nanvar(old_r)
-    i_var = np.nanvar(old_i)
-    z_var = np.nanvar(old_z)
+
+    old_gr = old_g - old_r
+    gr_var = np.nanvar(old_gr)
+
+    old_ri = old_r - old_i
+    ri_var = np.nanvar(old_ri)
+
+    old_iz = old_i - old_z
+    iz_var = np.nanvar(old_iz)
     #Create array to keep track of what parameters have been imputed
     impute_flags = np.asarray(['0']*len(old_kep))
 
 
-    good_params = [old_kep, old_j, old_h, old_k, old_pm, old_g, old_r, old_i, old_z]
-    good_vars = [kep_var, j_var, h_var, k_var, pm_var, g_var, r_var, i_var, z_var]
+    good_params = [old_kep, old_j, old_jh, old_hk, old_g, old_gr, old_ri, old_iz]
+    good_vars = [kep_var, j_var, jh_var, hk_var, g_var, gr_var, ri_var, iz_var]
     all_old= [old_pm, old_g, old_r, old_i, old_z]
     all_new =[np.copy(old_pm), np.copy(old_g), np.copy(old_r), np.copy(old_i), np.copy(old_z)]
     all_err = [new_pm_err, new_g_err, new_r_err, new_i_err, new_z_err]
@@ -186,24 +192,21 @@ def neighbor_impute(old_kep, old_j, old_h, old_k,
             impute_flags[impute_mask][j] += flags[i] #Update imputation flag
             sqdist = np.zeros((len(good_mask[0]))) #Empty array to store distances from current unknown datapoint to known datapoints
             goodcounts = np.zeros_like(sqdist) #Keeps track of how many parameters have been used to calculate distance
-            for k in range(0,len(good_mask[0])):
-                for h in range(0,len(good_params)):
-                    temp_sqdist = ((good_params[h][impute_mask][j] -
-                        good_params[h][good_mask][k])**2.0)/good_vars[h] #Variance normalized distance
-                    if np.isfinite(temp_sqdist):
-                        if temp_sqdist == 0.0:
-                            #print 'Identical'
-                            pass
-                        else:
-                            #print good_params[h][impute_mask][j], good_params[h][good_mask][k], temp_sqdist
-                            sqdist[k] += temp_sqdist
-                            goodcounts[k] += 1
+            for h in range(0,len(good_params)):
+                impute_copy = np.asarray([good_params[h][impute_mask][j]]*len(good_mask[0]))
+                temp_sqdist = ((impute_copy -
+                good_params[h][good_mask])**2.0)/good_vars[h] #Variance normalized distance
+                temp_sqdist_mask = np.where((temp_sqdist != 0.0) & (np.isfinite(temp_sqdist)))
+                goodcounts[temp_sqdist_mask] += 1
+                sqdist[temp_sqdist_mask] += temp_sqdist[temp_sqdist_mask]
+            low_counts = np.where(goodcounts < 3)
+            sqdist[low_counts] = sqdist[low_counts] + np.max(sqdist)
             sqdist = sqdist/goodcounts #Divide by total number of parameters used in distance
             sort_mask = np.argsort(sqdist)
             sort_var = old_param[good_mask][sort_mask] #Sort desired parameter values acccording to distances
             sort_var = sort_var[:knn]
             sqdist = sqdist[sort_mask][:knn]
-            print sqdist  #Accept only up to knn for imputation
+             #Accept only up to knn for imputation
             median_dist = np.median(sort_var)
             dist_sigma = abs(sort_var - median_dist)/np.std(sort_var) #Remove 3-sigma outliers
             while len(np.where(dist_sigma > 3.0)[0]) > 0:
@@ -436,12 +439,7 @@ if __name__ == '__main__':
 
     impute_flags = np.load('imp_flags.npy')
 
-    jhcolor = jmag - hmag
-    jhcolor_err = np.sqrt((jmag_err**2.0) + (hmag_err**2.0))
-    jkcolor = jmag - kmag
-    jkcolor_err = np.sqrt((jmag_err**2.0) + (kmag_err**2.0))
-    hkcolor = hmag - kmag
-    hkcolor_err = np.sqrt((hmag_err**2.0) + (kmag_err**2.0))
+
 
     fuzz_kepid = make_fuzzy_column(kepid)
     fuzz_kepmag = make_fuzzy_column(kepmag)
@@ -454,9 +452,9 @@ if __name__ == '__main__':
     fuzz_jmag = make_fuzzy_column(jmag, jmag_err)
     fuzz_hmag = make_fuzzy_column(hmag, hmag_err)
     fuzz_kmag = make_fuzzy_column(kmag, kmag_err)
-    fuzz_jhcolor = make_fuzzy_column(jhcolor, jhcolor_err)
-    fuzz_jkcolor = make_fuzzy_column(jkcolor, jkcolor_err)
-    fuzz_hkcolor = make_fuzzy_column(hkcolor, hkcolor_err)
+    fuzz_jhcolor = fuzz_jmag - fuzz_hmag
+    fuzz_jkcolor = fuzz_jmag - fuzz_kmag
+    fuzz_hkcolor = fuzz_hmag - fuzz_kmag
     fuzz_pm_tot = make_fuzzy_column(pm_tot, pm_err)
     fuzz_poly_cdpp = make_fuzzy_column(poly_cdpp)
     fuzz_gmag = make_fuzzy_column(gmag, gmag_err)
@@ -586,20 +584,18 @@ if __name__ == '__main__':
     saveloc = 'ks17plots/'
     make_color_color_plots(infos, clustertitles, plottitle, saveloc=saveloc, mode= 'SHOW')
     make_single_col_plots(infos, clustertitles, plottitle, colnames, saveloc=saveloc, mode='SHOW')
-    '''
 
+    '''
     teffname = 'TempCluster.npy'
     cdppname = 'CDPPcluster.npy'
     loggjkname = 'LoggJKcluster.npy'
-    testname = loggjkname
+    testname = cdppname
     infos = np.load(testname)
-    #print 'Number of unique KepIDs in both:', len((np.intersect1d(np.unique(infos[1][0]), np.unique(infos[2][0]))))
-    #print 'Number of unique, total samples in M Dwarf Cluster:', len(np.unique(infos[1][0])), len(infos[1][0])
-    #print 'Number of unique, total samples in K Dwarf? Cluster', len(np.unique(infos[2][0])), len(infos[2][0])
+
     #all_cluster_look(teffname, 'Temperature 3 Clusters', mode = 'SHOW')
     #all_cluster_look(cdppname, 'CDPP 5 Clusters', mode = 'SHOW')
     #all_cluster_look(loggjkname, 'Log_g J - K 3 Clusters', mode = 'SHOW')
-    testindex = 2
+    testindex = 0
     kepids = np.unique(infos[testindex][0])
     all_ids = np.asarray(ks17.kepid)
     readmask = np.empty((len(kepids)), dtype = int)

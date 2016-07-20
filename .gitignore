@@ -91,3 +91,5 @@ gmag_limit.npy
 good_feh.npy
 good_h_err.npy
 *.npy
+*.pkl
+*.tar
