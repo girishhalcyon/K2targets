@@ -61,6 +61,12 @@ def get_C6mast_info(csvname):
     mask = np.where(epics >= 201000000)
     return epics[mask], gids[mask]
 
+def get_C_other(csvname):
+    mastcsv = np.genfromtxt(csvname, delimiter=',', skip_header =1, usecols = [0], names=None)
+    epics = mastcsv[:]
+    mask = np.where(epics >= 201000000)
+    return epics[mask]
+
 def neighbor_impute(old_kep, old_j, old_h, old_k,
     old_pm, old_pm_err,old_g, old_r, old_i, old_z,
     old_j_err, old_h_err, old_k_err, old_g_err,
@@ -106,7 +112,7 @@ def neighbor_impute(old_kep, old_j, old_h, old_k,
 
 
     good_params = [old_kep, old_j, old_jh, old_hk, old_g, old_gr, old_ri, old_iz]
-    good_vars = [kep_var, j_var, jh_var, hk_var, g_var, gr_var, ri_var, iz_var]
+    good_vars = [kep_var, j_var, jh_var, hk_var, g_var, gr_var, ri_var,iz_var]
     all_old= [old_pm, old_g, old_r, old_i, old_z, old_j, old_h, old_k]
     all_new =[np.copy(old_pm), np.copy(old_g), np.copy(old_r), np.copy(old_i), np.copy(old_z), np.copy(old_j), np.copy(old_h), np.copy(old_k)]
     all_err = [new_pm_err, new_g_err, new_r_err, new_i_err, new_z_err, new_j_err, new_h_err, new_k_err]
@@ -120,14 +126,13 @@ def neighbor_impute(old_kep, old_j, old_h, old_k,
         good_mask = np.where(np.isfinite(old_param))
         all_good_len = len(good_mask[0])
         all_bad_len = len(impute_mask[0])
+        print flags[i]
         print all_bad_len, all_good_len
         bad_means = np.empty((len(impute_mask[0])))
         bad_errs = np.empty((len(impute_mask[0])))
         for j in range(0,len(impute_mask[0])):
-            #print j, ' out of ', all_bad_len
-            #print impute_flags[impute_mask][j]
+            print j+1, ' out of ', all_bad_len
             index = impute_mask[0][j]
-            #print index
             new_flag = impute_flags[index] + flags[i]
             impute_flags[index] = new_flag #Update imputation flag
             sqdist = np.zeros((len(good_mask[0]))) #Empty array to store distances from current unknown datapoint to known datapoints
@@ -323,8 +328,41 @@ if __name__ == '__main__':
     allmags = [allkepmags, allgmags, allrmags, allimags, allzmags, allJmags, allHmags, allKmags]
     allmagerrs = [allgmag_errs, allrmag_errs, allimag_errs, allzmag_errs, allJmag_errs, allHmag_errs, allKmag_errs]
 
-    C5epics, C5gids = get_C5mast_info('K2C5mast.csv')
-    C6epics, C6gids = get_C6mast_info('K2C6mast.csv')
+    C0epics = get_C_other('K2C0mast.csv')
+    C1epics = get_C_other('K2C1mast.csv')
+    C2epics = get_C_other('K2C2mast.csv')
+    C3epics = get_C_other('K2C3mast.csv')
+    C4epics = get_C_other('K2C4mast.csv')
+    C7epics = get_C_other('K2C7mast.csv')
+    C8epics = get_C_other('K2C8mast.csv')
+
+    C0_unimpute_catalog = fill_unimpute(C0epics, allepics, alldecs, allpmras, allpmdecs, allTeffs,
+        allmetals, allRads, allmasses, allDists, allmags, allmagerrs, allpmRA_errs, allpmDEC_errs)
+    np.save('C0_unimpute_catalog', C0_unimpute_catalog)
+
+    C1_unimpute_catalog = fill_unimpute(C1epics, allepics, alldecs, allpmras, allpmdecs, allTeffs,
+        allmetals, allRads, allmasses, allDists, allmags, allmagerrs, allpmRA_errs, allpmDEC_errs)
+    np.save('C1_unimpute_catalog', C1_unimpute_catalog)
+
+    C2_unimpute_catalog = fill_unimpute(C2epics, allepics, alldecs, allpmras, allpmdecs, allTeffs,
+        allmetals, allRads, allmasses, allDists, allmags, allmagerrs, allpmRA_errs, allpmDEC_errs)
+    np.save('C2_unimpute_catalog', C2_unimpute_catalog)
+
+    C3_unimpute_catalog = fill_unimpute(C3epics, allepics, alldecs, allpmras, allpmdecs, allTeffs,
+        allmetals, allRads, allmasses, allDists, allmags, allmagerrs, allpmRA_errs, allpmDEC_errs)
+    np.save('C3_unimpute_catalog', C3_unimpute_catalog)
+
+    C4_unimpute_catalog = fill_unimpute(C4epics, allepics, alldecs, allpmras, allpmdecs, allTeffs,
+        allmetals, allRads, allmasses, allDists, allmags, allmagerrs, allpmRA_errs, allpmDEC_errs)
+    np.save('C4_unimpute_catalog', C4_unimpute_catalog)
+
+    C7_unimpute_catalog = fill_unimpute(C7epics, allepics, alldecs, allpmras, allpmdecs, allTeffs,
+        allmetals, allRads, allmasses, allDists, allmags, allmagerrs, allpmRA_errs, allpmDEC_errs)
+    np.save('C7_unimpute_catalog', C7_unimpute_catalog)
+
+    C8_unimpute_catalog = fill_unimpute(C8epics, allepics, alldecs, allpmras, allpmdecs, allTeffs,
+        allmetals, allRads, allmasses, allDists, allmags, allmagerrs, allpmRA_errs, allpmDEC_errs)
+    np.save('C8_unimpute_catalog', C8_unimpute_catalog)
 
     C5_unimpute_catalog = fill_unimpute(C5epics, allepics, alldecs, allpmras, allpmdecs, allTeffs,
         allmetals, allRads, allmasses, allDists, allmags, allmagerrs, allpmRA_errs, allpmDEC_errs)
@@ -333,28 +371,42 @@ if __name__ == '__main__':
         allmetals, allRads, allmasses, allDists, allmags, allmagerrs, allpmRA_errs, allpmDEC_errs)
     np.save('C6_unimpute_catalog', C6_unimpute_catalog)
     '''
-
+    C0_unimpute_catalog = np.load('C0_unimpute_catalog.npy')
+    C1_unimpute_catalog = np.load('C1_unimpute_catalog.npy')
+    C2_unimpute_catalog = np.load('C2_unimpute_catalog.npy')
+    C3_unimpute_catalog = np.load('C3_unimpute_catalog.npy')
+    C4_unimpute_catalog = np.load('C4_unimpute_catalog.npy')
     C5_unimpute_catalog = np.load('C5_unimpute_catalog.npy')
-    C5_impute_catalog, C5_impute_flags = impute_fill(C5_unimpute_catalog)
-    np.save('C5_impute_catalog', C5_impute_catalog)
-    np.save('C5_impute_flags', C5_impute_flags)
-    print 'SAVED C5'
     C6_unimpute_catalog = np.load('C6_unimpute_catalog.npy')
+    C7_unimpute_catalog = np.load('C7_unimpute_catalog.npy')
+    C8_unimpute_catalog = np.load('C8_unimpute_catalog.npy')
+
+    C0_8_unimpute_catalog = np.hstack((C0_unimpute_catalog, C1_unimpute_catalog, C2_unimpute_catalog,
+        C3_unimpute_catalog, C4_unimpute_catalog,
+        C5_unimpute_catalog, C6_unimpute_catalog,
+        C7_unimpute_catalog, C8_unimpute_catalog))
+
+    np.save('C0_8_unimpute_catalog', C0_8_unimpute_catalog)
+
+    C0_8_impute_catalog, C0_8_impute_flags = impute_fill(C0_8_unimpute_catalog)
+    np.save('C0_8_impute_catalog', C0_8_impute_catalog)
+    np.save('C0_8_impute_flags', C0_8_impute_flags)
+    print 'SAVED C0_8'
+    '''
     C6_impute_catalog, C6_impute_flags = impute_fill(C6_unimpute_catalog)
     np.save('C6_impute_catalog', C6_impute_catalog)
     np.save('C6_impute_flags', C6_impute_flags)
 
     C5_impute_catalog = np.load('C5_impute_catalog.npy')
-    C6_impute_catalog = np.load('C6_impute_catalog.npy')
-    new_z_err = C5_impute_catalog[20]
+
+    C5_6_impute_catalog = np.load('C5_6_impute_catalog.npy')
+    '''
+    new_z_err = C0_8_impute_catalog[20]
     replace_z = np.where(np.isfinite(new_z_err) == False)
     new_z_err[replace_z] = np.median(new_z_err[np.where(np.isfinite(new_z_err))])
-    C5_impute_catalog[20] = new_z_err
-    new_z_err = C6_impute_catalog[20]
-    replace_z = np.where(np.isfinite(new_z_err) == False)
-    new_z_err[replace_z] = np.median(new_z_err[np.where(np.isfinite(new_z_err))])
-    C6_impute_catalog[20] = new_z_err
-    np.save('C5_impute_catalog', C5_impute_catalog)
-    np.save('C6_impute_catalog', C6_impute_catalog)
-    for i in range(0,np.shape(C5_impute_catalog)[0]):
-        print len(np.where(np.isfinite(C5_impute_catalog[i]) == False)[0]), len(np.where(np.isfinite(C6_impute_catalog[i]) == False)[0])
+    C0_8_impute_catalog[20] = new_z_err
+
+
+    np.save('C0_8_impute_catalog', C0_8_impute_catalog)
+    for i in range(0,np.shape(C0_8_impute_catalog)[0]):
+        print len(np.where(np.isfinite(C0_8_impute_catalog[i]) == False)[0])

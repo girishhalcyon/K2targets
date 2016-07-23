@@ -93,3 +93,5 @@ good_h_err.npy
 *.npy
 *.pkl
 *.tar
+*.npy
+LoggJKcluster.npy

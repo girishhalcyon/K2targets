@@ -3,6 +3,7 @@ from ks17cluster import make_fuzzy_column
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.externals import joblib
 import matplotlib.pyplot as plt
+from k2_verify import read_known
 
 def make_test_sample(infos,goodcols = [1,7, 9,11, 13,15, 17, 19]):
     #KepMag, J, H, K, PM, g, r, i, z
@@ -44,41 +45,47 @@ def make_fuzzy_catalog(impute_catalog,fuzz_factor = 100):
     return fuzzy_catalog
 
 if __name__ == '__main__':
+    '''
 
     colnames = ['KepID', 'KepMag', 'Teff', 'Metallicity',
         'Mass', 'Radius', 'Distance', 'Jmag', 'Hmag', 'Kmag', 'Proper Motion',
         'gmag', 'rmag', 'imag', 'zmag', 'Class']
     goodcolnames = np.asarray([1,7, 8,9,11,12, 13,14], dtype = int)
     goodcolids = [1,7, 9,11, 13,15, 17, 19]
+    #goodcolnames = np.asarray([1,7, 8,9,11,12, 13], dtype = int)
+    #goodcolids = [1,7, 9,11, 13,15, 17]
     feature_names = [colnames[i] for i in goodcolnames]
 
-    C6_impute_catalog = np.load('C6_impute_catalog.npy')
+    C0_8_impute_catalog = np.load('C0_8_impute_catalog.npy')
 
     print 'Making Fuzzy Catalog'
-    C6_fuzzy_catalog = make_fuzzy_catalog(C6_impute_catalog)
-    np.save('C6_fuzzy_catalog', C6_fuzzy_catalog)
-    C6_fuzzy_catalog = np.load('C6_fuzzy_catalog.npy')
+    C0_8_fuzzy_catalog = make_fuzzy_catalog(C0_8_impute_catalog)
+    np.save('C0_8_fuzzy_catalog', C0_8_fuzzy_catalog)
+    C0_8_fuzzy_catalog = np.load('C0_8_fuzzy_catalog.npy')
 
-    C6_K2_sample, C6_K2_details = make_test_sample(C6_fuzzy_catalog)
-    np.save('C6_K2_sample',C6_K2_sample)
-    np.save('C6_K2_details', C6_K2_details)
-
+    C0_8_K2_sample, C0_8_K2_details = make_test_sample(C0_8_fuzzy_catalog)
+    np.save('C0_8_K2_sample',C0_8_K2_sample)
+    np.save('C0_8_K2_details', C0_8_K2_details)
+    '''
 
     fuzz_factor = 100
-    C6_impute_flags = np.load('C6_impute_flags.npy')
-    C6_K2_sample = np.load('C6_K2_sample.npy')
-    C6_K2_details = np.load('C6_K2_details.npy')
+    C0_8_impute_flags = np.load('C0_8_impute_flags.npy')
+    C0_8_K2_sample = np.load('C0_8_K2_sample.npy')
+    #C0_8_K2_details = np.load('C0_8_K2_details.npy')
     print 'Loading Forest'
     clf = joblib.load('CalibratedRF_2.pkl')
     n_classes = len(clf.classes_)
     classes = ['M-Dwarf', 'Other Dwarf', 'Giant', 'Hot Star']
-    unique_len = np.shape(C6_K2_sample)[0]/fuzz_factor
+    unique_len = np.shape(C0_8_K2_sample)[0]/fuzz_factor
 
 
 
     print 'Predicting K2 Data'
     probs = np.empty((unique_len, n_classes))
+    prob_errs = np.empty_like(probs)
     for i in range(0,unique_len):
-        probs[i] = np.mean(clf.predict_proba(C6_K2_sample[fuzz_factor*i:fuzz_factor*(i+1)]), axis = 0)
+        probs[i] = np.mean(clf.predict_proba(C0_8_K2_sample[fuzz_factor*i:fuzz_factor*(i+1)]), axis = 0)
+        prob_errs[i] =  np.std(clf.predict_proba(C0_8_K2_sample[fuzz_factor*i:fuzz_factor*(i+1)]), axis = 0)
         print i, ' out of ', unique_len
-    np.save('C6_all_probs_CRF2', probs)
+    np.save('C0_8_all_probs_CRF2', probs)
+    np.save('C0_8_all_prob_errs_CRF2', prob_errs)

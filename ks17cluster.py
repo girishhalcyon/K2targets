@@ -186,6 +186,7 @@ def neighbor_impute(old_kep, old_j, old_h, old_k,
         impute_mask = np.where((np.isfinite(old_param) == False))
         good_mask = np.where(np.isfinite(old_param))
         print len(impute_mask[0]), len(good_mask[0])
+        print flags[i]
         bad_means = np.empty((len(impute_mask[0])))
         bad_errs = np.empty((len(impute_mask[0])))
         for j in range(0,len(impute_mask[0])):
@@ -215,7 +216,7 @@ def neighbor_impute(old_kep, old_j, old_h, old_k,
                 median_dist = np.median(sort_var)
                 dist_sigma = abs(sort_var - median_dist)/np.std(sort_var)
             bad_means[j] = np.average(sort_var, weights=1.0/sqdist)
-            print bad_means[j], np.std(sort_var) #Assign mean of closest datapoints as imputed value
+            #print bad_means[j], np.std(sort_var) #Assign mean of closest datapoints as imputed value
             bad_errs[j] = np.std(sort_var) #Assign standard deviation as error
         all_new[i][impute_mask] = bad_means
         all_err[i][impute_mask] = bad_errs
@@ -582,8 +583,8 @@ if __name__ == '__main__':
     clustertitles = [str(i) for i in range(0,nclusters)]
     plottitle = 'Log_g J - K'
     saveloc = 'ks17plots/'
-    make_color_color_plots(infos, clustertitles, plottitle, saveloc=saveloc, mode= 'SHOW')
-    make_single_col_plots(infos, clustertitles, plottitle, colnames, saveloc=saveloc, mode='SHOW')
+    #make_color_color_plots(infos, clustertitles, plottitle, saveloc=saveloc, mode= 'SHOW')
+    #make_single_col_plots(infos, clustertitles, plottitle, colnames, saveloc=saveloc, mode='SHOW')
 
     '''
     teffname = 'TempCluster.npy'

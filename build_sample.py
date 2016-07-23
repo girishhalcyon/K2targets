@@ -11,7 +11,7 @@ from matplotlib.ticker import AutoMinorLocator
 from sklearn.externals import joblib
 
 def get_sample(classlabel = 0,
-    condition = 100, goodcols = [1,8,9,10,13,14, 15, 16],
+    condition = 100, goodcols = [1,8,9,10,13,14, 15],
     infoname = 'LoggJKcluster.npy', infocol = 1):
 
     infos = np.load(infoname)
@@ -65,23 +65,23 @@ if __name__ == '__main__':
     colnames = ['KepID', 'KepMag', 'Teff', 'log g', 'Metallicity',
         'Mass', 'Radius', 'Distance', 'Jmag', 'Hmag', 'Kmag', 'Proper Motion',
         'Poly CDPP', 'gmag', 'rmag', 'imag', 'zmag', 'Class']
-    goodcols = np.asarray([1,8,9,10,13,14, 15, 16], dtype = int)
+    goodcols = np.asarray([1,8,9,10,13,14, 15], dtype = int)
     #KepMag, J, H, K, PM, g, r, i, z
     teffname = 'TempCluster.npy'
     cdppname = 'CDPPcluster.npy'
     loggjkname = 'LoggJKcluster.npy'
 
-    #M dwarfs: name=LoggJKcluster.npy; infocol=2; classname=0; occurence=100
-    #Otherdwarfs: name=LoggJKcluster.npy; infocol=0; classname=1; occurence=100
+    #M dwarfs: name=LoggJKcluster.npy; infocol=0; classname=0; occurence=100
+    #Otherdwarfs: name=LoggJKcluster.npy; infocol=1; classname=1; occurence=100
     #Giants: name=CDPPcluster.npy; infocol=3; classname=2; occurence=100
     #Supergiants: name=CDPPcluster.npy; infocol=4; classname=3; occurence=100
     #Hot Stars: name=TempCluster.npy; infocol= 2; classname=4; occurence=100
     #Very Hot Stars: name=TempCluster.npy; infocol= 0; classname=5; occurence=100
 
-    m_dwarf_sample, m_dwarf_details =  get_sample(classlabel = 0, infocol = 2,
+    m_dwarf_sample, m_dwarf_details =  get_sample(classlabel = 0, infocol = 0,
         condition=100)
-    subdwarf_sample, subdwarf_details = get_sample(classlabel= 1,infocol=0, condition=100)
-    giant_sample, giant_details = get_sample(classlabel=2, infocol=3, infoname=cdppname, condition=100)
+    subdwarf_sample, subdwarf_details = get_sample(classlabel= 1,infocol=1, condition=100)
+    giant_sample, giant_details = get_sample(classlabel=2, infocol=0, infoname=cdppname, condition=100)
     #supergiant_sample, supergiant_details = get_sample(classlabel=2, infocol=4, infoname=cdppname, condition=100)
     hot_stars, hot_stars_details = get_sample(classlabel=3, infocol=2, infoname=teffname, condition=100)
     #very_hot_stars, very_hot_stars_details = get_sample(classlabel=3, infocol=0, infoname=teffname, condition=100)
@@ -195,8 +195,8 @@ if __name__ == '__main__':
     #print 'Log-loss score:', sig_score
     #print 'Normal score:', sig_clf.score(X_test, y_test)
     #print 'Uncalibrated Normal score:', clf.score(X_test, y_test)
-    joblib.dump(sig_clf, 'CalibratedRF_2.pkl')
-    joblib.dump(clf, 'UncalibratedRF_2.pkl')
+    joblib.dump(sig_clf, 'CalibratedRF_3.pkl')
+    joblib.dump(clf, 'UncalibratedRF_3.pkl')
     '''
 
 
