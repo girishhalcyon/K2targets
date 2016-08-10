@@ -2,7 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import pdb
-
+#from joblib import Parallel, delayed
+from multiprocessing import Pool
+from multiprocessing.dummy import Pool as ThreadPool
 
 
 def ra_convert(ras):
@@ -86,6 +88,8 @@ def neighbor_impute(old_kep, old_j, old_h, old_k,
     new_j_err = np.copy(old_j_err)
     new_h_err = np.copy(old_h_err)
     new_k_err = np.copy(old_k_err)
+
+    all_new =[np.copy(old_pm), np.copy(old_g), np.copy(old_r), np.copy(old_i), np.copy(old_z), np.copy(old_j), np.copy(old_h), np.copy(old_k)]
     #Save variances of all parameters to constants
     kep_var = np.nanvar(old_kep)
     j_var = np.nanvar(old_j)
@@ -114,7 +118,6 @@ def neighbor_impute(old_kep, old_j, old_h, old_k,
     good_params = [old_kep, old_j, old_jh, old_hk, old_g, old_gr, old_ri, old_iz]
     good_vars = [kep_var, j_var, jh_var, hk_var, g_var, gr_var, ri_var,iz_var]
     all_old= [old_pm, old_g, old_r, old_i, old_z, old_j, old_h, old_k]
-    all_new =[np.copy(old_pm), np.copy(old_g), np.copy(old_r), np.copy(old_i), np.copy(old_z), np.copy(old_j), np.copy(old_h), np.copy(old_k)]
     all_err = [new_pm_err, new_g_err, new_r_err, new_i_err, new_z_err, new_j_err, new_h_err, new_k_err]
     flags = ['p', 'g', 'r', 'i', 'z', 'J', 'H', 'K']
 
@@ -286,6 +289,305 @@ def impute_fill(unimpute_catalog, knn = 50):
 
     return new_catalog, impute_flags
 
+def color_neighbor_impute(old_kep, old_j, old_h, old_k,
+    old_pm, old_pm_err,old_g, old_r, old_i, old_z,
+    old_j_err, old_h_err, old_k_err, old_g_err,
+    old_r_err, old_i_err, old_z_err, knn = 50, Kepler_sample = 'X_train.npy'):
+
+    Kepler_sample = np.load(Kepler_sample)
+    #Replace proper motion values of 0.0 with NaNs to mark them as unknown
+    replace_pm = np.where(old_pm == 0.0)
+    old_pm[replace_pm] = np.nan
+
+    #Copy error columns
+    new_pm_err = np.copy(old_pm_err)
+    new_g_err = np.copy(old_g_err)
+    new_gr_err = np.sqrt((old_g_err**2.0) + (old_r_err**2.0))
+    new_ri_err = np.sqrt((old_r_err**2.0) + (old_i_err**2.0))
+    new_zJ_err = np.sqrt((old_z_err**2.0) + (old_j_err**2.0))
+
+    new_J_err = np.copy(old_j_err)
+    new_JH_err = np.sqrt((old_j_err**2.0) + (old_h_err**2.0))
+    new_HK_err = np.sqrt((old_h_err**2.0) + (old_k_err**2.0))
+
+
+
+
+
+    Kep_kep = Kepler_sample[:,0]
+    Kep_J = Kepler_sample[:,1]
+    Kep_JH = Kepler_sample[:,2]
+    Kep_HK = Kepler_sample[:,3]
+    Kep_g = Kepler_sample[:,4]
+    Kep_gr = Kepler_sample[:, 5]
+    Kep_ri = Kepler_sample[:,6]
+    Kep_zJ = Kepler_sample[:,7]
+
+    Kep_pm = np.nan*np.ones_like(Kep_kep)
+
+    old_jh = old_j - old_h
+    old_hk = old_h - old_k
+    old_gr = old_g - old_r
+    old_ri = old_r - old_i
+    old_zj = old_z - old_j
+
+
+
+    good_params = [np.append(old_pm, Kep_pm), np.append(old_j, Kep_kep),
+        np.append(old_jh, Kep_JH), np.append(old_hk, Kep_HK),
+        np.append(old_g, Kep_g), np.append(old_gr, Kep_gr),
+        np.append(old_ri, Kep_ri), np.append(old_zj, Kep_zJ), np.append(old_kep, Kep_kep)]
+    good_vars = [np.nanvar(good_param) for good_param in good_params]
+    all_old= [old_pm, old_j, old_jh, old_hk, old_g, old_gr, old_ri, old_zj]
+    all_new = [np.copy(old_param) for old_param in all_old]
+    all_err = [new_pm_err, new_J_err, new_JH_err, new_HK_err, new_g_err, new_gr_err, new_ri_err, new_zJ_err]
+
+
+    #Create array to keep track of what parameters have been imputed
+    temp_flags = ['0']*len(old_kep)
+    impute_flags = np.array(['0']*len(old_kep), dtype = 'S50')
+
+
+
+    flags = ['_p_', '_J_', '_J-H_', '_H-K_', '_g_', '_g-r_', '_r-i_', '_z-J_']
+
+
+
+
+    for j in range(0,len(all_old[0])):
+            print j+1, ' out of ', len(all_old[0])
+
+            sqdist = np.zeros((len(good_params[0]))) #Empty array to store distances from current unknown datapoint to known datapoints
+            goodcounts = np.zeros_like(sqdist) #Keeps track of how many parameters have been used to calculate distance
+            for h in range(0,len(good_params)):
+                impute_copy = np.asarray([good_params[h][j]]*len(sqdist))
+                temp_sqdist = ((impute_copy -
+                good_params[h])**2.0)/good_vars[h] #Variance normalized distance
+                temp_sqdist_mask = np.where((temp_sqdist != 0.0) & (np.isfinite(temp_sqdist)))
+                goodcounts[temp_sqdist_mask] += 1
+                sqdist[temp_sqdist_mask] += temp_sqdist[temp_sqdist_mask]
+            low_counts = np.where(goodcounts < 3)
+            sqdist[low_counts] = sqdist[low_counts] + np.max(sqdist)
+            original_sqdist = sqdist/goodcounts #Divide by total number of parameters used in distance
+
+            for i in range(0,len(all_old)):
+                if np.isfinite(all_new[i][j]):
+                    pass
+                else:
+                    old_param = all_old[i]
+                    good_mask = np.where(np.isfinite(good_params[i]))
+                    sort_mask = np.argsort(original_sqdist[good_mask])
+                    new_sqdist = original_sqdist[good_mask][sort_mask]
+                    sort_var = good_params[i][good_mask][sort_mask] #Sort desired parameter values acccording to distances
+                    median_dist = np.median(new_sqdist)
+                    dist_sigma = abs(new_sqdist - median_dist)/np.std(new_sqdist) #Remove 3-sigma outliers
+                    while len(np.where(dist_sigma > 3.0)[0]) > 0:
+                        sort_var = sort_var[np.where(dist_sigma <= 3.0)]
+                        new_sqdist = new_sqdist[np.where(dist_sigma <= 3.0)]
+                        median_dist = np.median(new_sqdist)
+                        dist_sigma = abs(new_sqdist - median_dist)/np.std(new_sqdist)
+                    bad_means = np.average(sort_var, weights=1.0/new_sqdist)
+                    #print bad_means[j], np.std(sort_var) #Assign mean of closest datapoints as imputed value
+                    #print np.nanmean(all_new[i]), np.nanmean(all_err[i])
+                    bad_errs = np.std(sort_var) #Assign standard deviation as error
+                    impute_flags[j] = impute_flags[j] + flags[i]
+                    all_new[i][j] = bad_means
+                    all_err[i][j] = bad_errs
+    new_pm = all_new[0]
+    new_pm_err = all_err[0]
+    new_J = all_new[1]
+    new_J_err = all_err[1]
+    new_JH = all_new[2]
+    new_JH_err = all_err[2]
+    new_HK = all_new[3]
+    new_HK_err = all_err[3]
+
+    new_g = all_new[4]
+    new_g_err = all_err[4]
+    new_gr = all_new[5]
+    new_gr_err = all_err[5]
+    new_ri = all_new[6]
+    new_ri_err = all_err[6]
+    new_zJ = all_new[7]
+    new_zJ_err = all_err[7]
+    replace_zJ = np.where(np.isfinite(new_zJ_err) == False)
+    new_zJ_err[replace_zJ] = np.median(new_zJ_err[np.where(np.isfinite(new_zJ_err))])
+
+    return new_pm, new_pm_err, new_J, new_J_err, new_JH, new_JH_err, new_HK, new_HK_err, new_g, new_g_err, new_gr, new_gr_err, new_ri, new_ri_err, new_zJ, new_zJ_err, impute_flags
+
+def multi_color_neighbor_impute(old_kep, old_j, old_h, old_k,
+    old_pm, old_pm_err,old_g, old_r, old_i, old_z,
+    old_j_err, old_h_err, old_k_err, old_g_err,
+    old_r_err, old_i_err, old_z_err, knn = 50, Kepler_sample = 'X_train.npy'):
+
+    Kepler_sample = np.load(Kepler_sample)
+    #Replace proper motion values of 0.0 with NaNs to mark them as unknown
+    replace_pm = np.where(old_pm == 0.0)
+    old_pm[replace_pm] = np.nan
+
+    #Copy error columns
+    new_pm_err = np.copy(old_pm_err)
+    new_g_err = np.copy(old_g_err)
+    new_gr_err = np.sqrt((old_g_err**2.0) + (old_r_err**2.0))
+    new_ri_err = np.sqrt((old_r_err**2.0) + (old_i_err**2.0))
+    new_zJ_err = np.sqrt((old_z_err**2.0) + (old_j_err**2.0))
+
+    new_J_err = np.copy(old_j_err)
+    new_JH_err = np.sqrt((old_j_err**2.0) + (old_h_err**2.0))
+    new_HK_err = np.sqrt((old_h_err**2.0) + (old_k_err**2.0))
+
+
+
+
+
+    Kep_kep = Kepler_sample[:,0]
+    Kep_J = Kepler_sample[:,1]
+    Kep_JH = Kepler_sample[:,2]
+    Kep_HK = Kepler_sample[:,3]
+    Kep_g = Kepler_sample[:,4]
+    Kep_gr = Kepler_sample[:, 5]
+    Kep_ri = Kepler_sample[:,6]
+    Kep_zJ = Kepler_sample[:,7]
+
+    Kep_pm = np.nan*np.ones_like(Kep_kep)
+
+    old_jh = old_j - old_h
+    old_hk = old_h - old_k
+    old_gr = old_g - old_r
+    old_ri = old_r - old_i
+    old_zj = old_z - old_j
+
+
+
+    good_params = [np.append(old_pm, Kep_pm), np.append(old_j, Kep_kep),
+        np.append(old_jh, Kep_JH), np.append(old_hk, Kep_HK),
+        np.append(old_g, Kep_g), np.append(old_gr, Kep_gr),
+        np.append(old_ri, Kep_ri), np.append(old_zj, Kep_zJ), np.append(old_kep, Kep_kep)]
+    good_vars = [np.nanvar(good_param) for good_param in good_params]
+    all_old= [old_pm, old_j, old_jh, old_hk, old_g, old_gr, old_ri, old_zj]
+    all_new = [np.copy(old_param) for old_param in all_old]
+    all_err = [new_pm_err, new_J_err, new_JH_err, new_HK_err, new_g_err, new_gr_err, new_ri_err, new_zJ_err]
+
+
+    #Create array to keep track of what parameters have been imputed
+    temp_flags = ['0']*len(old_kep)
+    impute_flags = np.array(['0']*len(old_kep), dtype = 'S50')
+
+
+
+    flags = ['_p_', '_J_', '_J-H_', '_H-K_', '_g_', '_g-r_', '_r-i_', '_z-J_']
+
+
+
+
+    def multi_impute(j):
+            print j+1
+
+            sqdist = np.zeros((len(good_params[0]))) #Empty array to store distances from current unknown datapoint to known datapoints
+            goodcounts = np.zeros_like(sqdist) #Keeps track of how many parameters have been used to calculate distance
+            for h in range(0,len(good_params)):
+                impute_copy = np.asarray([good_params[h][j]]*len(sqdist))
+                temp_sqdist = ((impute_copy -
+                good_params[h])**2.0)/good_vars[h] #Variance normalized distance
+                temp_sqdist_mask = np.where((temp_sqdist != 0.0) & (np.isfinite(temp_sqdist)))
+                goodcounts[temp_sqdist_mask] += 1
+                sqdist[temp_sqdist_mask] += temp_sqdist[temp_sqdist_mask]
+            low_counts = np.where(goodcounts < 3)
+            sqdist[low_counts] = sqdist[low_counts] + np.max(sqdist)
+            original_sqdist = sqdist/goodcounts #Divide by total number of parameters used in distance
+
+            for i in range(0,len(all_old)):
+                if np.isfinite(all_old[i][j]):
+                    pass
+                else:
+                    old_param = all_old[i]
+                    good_mask = np.where(np.isfinite(good_params[i]))
+                    sort_mask = np.argsort(original_sqdist[good_mask])
+                    new_sqdist = original_sqdist[good_mask][sort_mask]
+                    sort_var = good_params[i][good_mask][sort_mask] #Sort desired parameter values acccording to distances
+                    median_dist = np.median(new_sqdist)
+                    dist_sigma = abs(new_sqdist - median_dist)/np.std(new_sqdist) #Remove 3-sigma outliers
+                    while len(np.where(dist_sigma > 3.0)[0]) > 0:
+                        sort_var = sort_var[np.where(dist_sigma <= 3.0)]
+                        new_sqdist = new_sqdist[np.where(dist_sigma <= 3.0)]
+                        median_dist = np.median(new_sqdist)
+                        dist_sigma = abs(new_sqdist - median_dist)/np.std(new_sqdist)
+                    bad_means = np.average(sort_var, weights=1.0/new_sqdist)
+                    #print bad_means[j], np.std(sort_var) #Assign mean of closest datapoints as imputed value
+                    #print np.nanmean(all_new[i]), np.nanmean(all_err[i])
+                    bad_errs = np.std(sort_var) #Assign standard deviation as error
+                    impute_flags[j] = impute_flags[j] + flags[i]
+                    all_new[i][j] = bad_means
+                    all_err[i][j] = bad_errs
+    p = ThreadPool(None)
+    p.map(multi_impute, np.arange(0,len(all_old[0])))
+
+    new_pm = all_new[0]
+    new_pm_err = all_err[0]
+    new_J = all_new[1]
+    new_J_err = all_err[1]
+    new_JH = all_new[2]
+    new_JH_err = all_err[2]
+    new_HK = all_new[3]
+    new_HK_err = all_err[3]
+
+    new_g = all_new[4]
+    new_g_err = all_err[4]
+    new_gr = all_new[5]
+    new_gr_err = all_err[5]
+    new_ri = all_new[6]
+    new_ri_err = all_err[6]
+    new_zJ = all_new[7]
+    new_zJ_err = all_err[7]
+    replace_zJ = np.where(np.isfinite(new_zJ_err) == False)
+    new_zJ_err[replace_zJ] = np.median(new_zJ_err[np.where(np.isfinite(new_zJ_err))])
+
+    return new_pm, new_pm_err, new_J, new_J_err, new_JH, new_JH_err, new_HK, new_HK_err, new_g, new_g_err, new_gr, new_gr_err, new_ri, new_ri_err, new_zJ, new_zJ_err, impute_flags
+
+
+def color_impute_fill(unimpute_catalog, knn = 50):
+
+    old_kep = unimpute_catalog[0]
+    old_j = unimpute_catalog[7]
+    old_h = unimpute_catalog[9]
+    old_k = unimpute_catalog[11]
+    old_pm = unimpute_catalog[21]
+    old_pm_err = unimpute_catalog[22]
+    old_g = unimpute_catalog[13]
+    old_r = unimpute_catalog[15]
+    old_i = unimpute_catalog[17]
+    old_z = unimpute_catalog[19]
+    old_j_err = unimpute_catalog[8]
+    old_h_err = unimpute_catalog[10]
+    old_k_err = unimpute_catalog[12]
+    old_g_err = unimpute_catalog[14]
+    old_r_err = unimpute_catalog[16]
+    old_i_err = unimpute_catalog[18]
+    old_z_err = unimpute_catalog[20]
+    new_pm, new_pm_err, new_J, new_J_err, new_JH, new_JH_err, new_HK, new_HK_err, new_g, new_g_err, new_gr, new_gr_err, new_ri, new_ri_err, new_zJ, new_zJ_err, impute_flags = multi_color_neighbor_impute(old_kep,
+        old_j, old_h,old_k, old_pm, old_pm_err,old_g, old_r, old_i, old_z,
+        old_j_err, old_h_err, old_k_err, old_g_err, old_r_err, old_i_err, old_z_err, knn = knn)
+
+    new_catalog = np.copy(unimpute_catalog)
+    new_catalog[7] = new_J
+    new_catalog[8] = new_J_err
+    new_catalog[9] = new_JH
+    new_catalog[10] = new_JH_err
+    new_catalog[11] = new_HK
+    new_catalog[12] = new_HK_err
+    new_catalog[13] = new_g
+    new_catalog[14] = new_g_err
+    new_catalog[15] = new_gr
+    new_catalog[16] = new_gr_err
+    new_catalog[17] = new_ri
+    new_catalog[18] = new_ri_err
+    new_catalog[19] = new_zJ
+    new_catalog[20] = new_zJ_err
+    new_catalog[21] = new_pm
+    new_catalog[22] = new_pm_err
+
+    return new_catalog, impute_flags
+
 if __name__ == '__main__':
     ##SECTION: Generating new INFO files##
     #epics, gids,kepmags = get_C5mast_info('K2C5mast.csv')
@@ -370,7 +672,7 @@ if __name__ == '__main__':
     C6_unimpute_catalog = fill_unimpute(C6epics, allepics, alldecs, allpmras, allpmdecs, allTeffs,
         allmetals, allRads, allmasses, allDists, allmags, allmagerrs, allpmRA_errs, allpmDEC_errs)
     np.save('C6_unimpute_catalog', C6_unimpute_catalog)
-    '''
+
     C0_unimpute_catalog = np.load('C0_unimpute_catalog.npy')
     C1_unimpute_catalog = np.load('C1_unimpute_catalog.npy')
     C2_unimpute_catalog = np.load('C2_unimpute_catalog.npy')
@@ -387,10 +689,11 @@ if __name__ == '__main__':
         C7_unimpute_catalog, C8_unimpute_catalog))
 
     np.save('C0_8_unimpute_catalog', C0_8_unimpute_catalog)
-
-    C0_8_impute_catalog, C0_8_impute_flags = impute_fill(C0_8_unimpute_catalog)
-    np.save('C0_8_impute_catalog', C0_8_impute_catalog)
-    np.save('C0_8_impute_flags', C0_8_impute_flags)
+    '''
+    C0_8_unimpute_catalog = np.load('C0_8_unimpute_catalog.npy')
+    C0_8_impute_catalog, C0_8_impute_flags = color_impute_fill(C0_8_unimpute_catalog)
+    np.save('C0_8_impute_catalog_color', C0_8_impute_catalog)
+    np.save('C0_8_impute_flags_color', C0_8_impute_flags)
     print 'SAVED C0_8'
     '''
     C6_impute_catalog, C6_impute_flags = impute_fill(C6_unimpute_catalog)
@@ -400,13 +703,13 @@ if __name__ == '__main__':
     C5_impute_catalog = np.load('C5_impute_catalog.npy')
 
     C5_6_impute_catalog = np.load('C5_6_impute_catalog.npy')
-    '''
+
     new_z_err = C0_8_impute_catalog[20]
     replace_z = np.where(np.isfinite(new_z_err) == False)
     new_z_err[replace_z] = np.median(new_z_err[np.where(np.isfinite(new_z_err))])
     C0_8_impute_catalog[20] = new_z_err
-
-
     np.save('C0_8_impute_catalog', C0_8_impute_catalog)
+    '''
+
     for i in range(0,np.shape(C0_8_impute_catalog)[0]):
         print len(np.where(np.isfinite(C0_8_impute_catalog[i]) == False)[0])

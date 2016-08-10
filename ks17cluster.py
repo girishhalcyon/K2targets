@@ -590,7 +590,7 @@ if __name__ == '__main__':
     teffname = 'TempCluster.npy'
     cdppname = 'CDPPcluster.npy'
     loggjkname = 'LoggJKcluster.npy'
-    testname = cdppname
+    testname = loggjkname
     infos = np.load(testname)
 
     #all_cluster_look(teffname, 'Temperature 3 Clusters', mode = 'SHOW')

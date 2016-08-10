@@ -45,7 +45,7 @@ def test_entries(singletarg):
         else:
             teff = np.nan
             rad = np.nan
-    mass = tb_m_rad(rad)
+    mass = am_mk_mass(am_r_mk(rad))
     return teff, rad, mass
 
 def am_vj_jh(Vmag, Jmag, Hmag):
@@ -63,10 +63,7 @@ def am_rj_jh(rmag, Jmag, Hmag):
     y = Jmag - Hmag
     coeffs = [2.151, -1.092, 0.3767, -0.06292,  0.003950,  0.1697,  0.03106]
     teff = 3500.0*(coeffs[0] + coeffs[1]*x+ coeffs[2]*(x**2.0) + coeffs[3]*(x**3.0) + coeffs[4]*(x**4.0) + coeffs[5]*y + coeffs[6]*(y**2.0))
-    if teff > 0.0:
-        return teff
-    else:
-        return np.nan
+    return teff
 
 def am_vj(Vmag, Jmag):
     x = Vmag - Jmag
@@ -99,37 +96,58 @@ def am_r_teff(teff):
     x = teff/3500.0
     coeffs = [10.5440, -33.7546,  35.1909, -11.5928]
     rad = (coeffs[0] + coeffs[1]*x + coeffs[2]*(x**2.0) + coeffs[3]*(x**3.0))
-    if rad < 0.0:
-        rad = np.nan
+
     return rad
 
-def tb_m_rad(rad):
-    if np.isfinite(rad):
-        a = 0.32
-        b = 0.6063
-        c = 0.0906
-        c = c - rad
-        discrim = (b**2.0) - (4.0*a*c)
-        polyparams = [a, b, c]
-        if discrim < 0.0:
-            return np.nan
-        elif discrim == 0.0:
-            return np.roots(polyparams)[0]
-        elif discrim > 0.0:
-            testroots = np.sort(np.roots(polyparams))
-            root1 = testroots[0]
-            root2 = testroots[1]
-            if root1 < 0.0:
-                return root2
-            elif root2 > 1.5:
-                return root1
-            elif abs(0.5 - root1) <= abs(root2 - 0.5):
-                return root1
-            else:
-                return root2
-    else:
-        return np.nan
+def am_r_mk(rad):
+    coeffs = [1.9515, -0.3520, 0.01680]
+    x = rad
+    mk = (coeffs[0] + coeffs[1]*x + coeffs[2]*(x**2.0))
 
+    return mk
+
+def am_mk_mass(mk):
+    coeffs = [0.5858, 0.3872, -0.1217, 0.0106, -0.00027262]
+    x = mk
+    mass = (coeffs[0] + coeffs[1]*x + coeffs[2]*(x**2.0) + coeffs[3]*(x**3.0) + coeffs[4]*(x**4.0))
+    return mass
+
+def tb_m_rad(rads):
+    mass = np.empty_like(rads)
+    for i in range(0,len(rads)):
+        rad = rads[i]
+        if np.isfinite(rad):
+            a = 0.32
+            b = 0.6063
+            c = 0.0906
+            c = c - rad
+            discrim = (b**2.0) - (4.0*a*c)
+            polyparams = [a, b, c]
+            if discrim < 0.0:
+                mass[i] = np.nan
+            elif discrim == 0.0:
+                mass[i] = np.roots(polyparams)[0]
+            elif discrim > 0.0:
+                testroots = np.sort(np.roots(polyparams))
+                root1 = testroots[0]
+                root2 = testroots[1]
+                if root1 < 0.0:
+                    if root2 > 0.0:
+                        mass[i] = root2
+                    else:
+                        mass[i] = np.nan
+                elif root2 > 1.5:
+                    if root1 < 1.5:
+                        mass[i] = root1
+                    else:
+                        mass[i] = np.nan
+                elif abs(0.5 - root1) <= abs(root2 - 0.5):
+                    mass[i] = root1
+                else:
+                    mass[i] = root2
+        else:
+            mass[i] = np.nan
+    return mass
 def plot_epic_derive(infos, infotitles, infocolors, infomarkers, plottitle,
     yparam, ylabel, xparam = 11, xlabel = 'KepMag',
     mode = 'SHOW', saveloc = ''):
@@ -195,24 +213,27 @@ def plot_epic_derive(infos, infotitles, infocolors, infomarkers, plottitle,
     plt.close('all')
 
 if __name__ == '__main__':
+    colnames = ['KepID', 'KepMag', 'Teff', 'Metallicity',
+        'Mass', 'Radius', 'Distance', 'Jmag', 'Hmag', 'Kmag', 'Proper Motion',
+        'gmag', 'rmag', 'imag', 'zmag', 'Class']
+    colnames = ['KepID', 'KepMag', 'Teff', 'Metallicity',
+        'Mass', 'Radius', 'Distance', 'J', 'J - H', 'H - K', 'Proper Motion',
+        'g', 'g - r', 'r - i', 'z - J', 'Class']
 
-    dwarfinfo = np.load('C5dwarfinfo.npy')
-    giantinfo = np.load('C5giantinfo.npy')
-    dginfo = np.load('C5dginfo.npy')
-    infos = [giantinfo, dwarfinfo, dginfo]
-    infotitles = ['Giants', 'Dwarfs', 'Both?']
-    infocolors = ['r', 'k', 'c']
-    infomarkers = ['o', 'x', '+']
-    plottitle = 'C05'
-    saveloc = 'C5plots/'
-
-
-    #plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 5, ylabel = r'T$_{eff}$')
-    #plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 7, ylabel = r'R$_{\star}$')
-    plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 8, ylabel = r'M$_{\star}$')
-    '''
-
-    plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 5, ylabel = r'T$_{eff}$', mode = 'PNG')
-    plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 7, ylabel = r'R$_{\star}$', mode = 'PNG')
-    plot_epic_derive(infos, infotitles, infocolors, infomarkers,plottitle, saveloc = saveloc, yparam = 8, ylabel = r'M$_{\star}$', mode = 'PNG')
-    '''
+    impute_catalog_name = 'C0_8_impute_catalog_color'
+    impute_catalog = np.load(impute_catalog_name + '.npy')
+    catalog_ids = impute_catalog[0]
+    catalog_J_mags = impute_catalog[7]
+    catalog_H_mags = impute_catalog[7] - impute_catalog[9]
+    catalog_r_mags = impute_catalog[13] - impute_catalog[15]
+    catalog_teffs = am_rj_jh(catalog_r_mags, catalog_J_mags, catalog_H_mags)
+    catalog_rads = am_r_teff(catalog_teffs)
+    #catalog_mass = am_mk_mass(am_r_mk(catalog_rads))
+    catalog_mass = tb_m_rad(catalog_rads)
+    stell_props = np.empty((len(catalog_ids), 4))
+    stell_props[:,0] = catalog_ids
+    stell_props[:,1] = catalog_teffs
+    stell_props[:,2] = catalog_rads
+    stell_props[:,3] = catalog_mass
+    stell_prop_name = impute_catalog_name + '_stell_props2'
+    np.save(stell_prop_name, stell_props)
