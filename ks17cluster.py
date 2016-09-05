@@ -242,7 +242,7 @@ if __name__ == '__main__':
 
     fname = 'ks17.csv'
     ks17 = pd.read_csv(fname, delimiter = '|')
-    '''
+
     kepid = np.asarray(ks17.kepid)
     teff = np.asarray(ks17.teff, dtype = float)
     teff_err1 = np.asarray(ks17.teff_err1, dtype = float)
@@ -364,7 +364,12 @@ if __name__ == '__main__':
     kmag_err = kmag_err[errlimitmask]
     pm_tot = pm_tot[errlimitmask]
     cdpp_tot = cdpp_tot[errlimitmask]
+    np.save('cdpp_temp', cdpp_tot)
+    np.save('kepmag_temp', kepmag)
+
     magcdppfit = np.polyfit(kepmag, cdpp_tot, 5)
+    print magcdppfit
+    '''
     poly_cdpp = cdpp_tot/np.polyval(magcdppfit, kepmag)
     umag = umag[errlimitmask]
     gmag = gmag[errlimitmask]
